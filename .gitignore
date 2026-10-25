@@ -19,3 +19,6 @@
 # MNIST dataset (download separately)
 /data/mnist/
 
+
+# Generated compile database
+/compile_commands.json
