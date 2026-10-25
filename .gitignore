@@ -1,0 +1,21 @@
+# Build directories
+/build/
+/build-*/
+/cmake-build-*/
+
+# Compiled binaries and libraries
+*.o
+*.a
+*.so
+*.so.*
+*.dylib
+*.dll
+*.exe
+*.out
+*.obj
+*.lib
+*.pdb
+
+# MNIST dataset (download separately)
+/data/mnist/
+

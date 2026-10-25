@@ -1,0 +1,190 @@
+#include "neural/data/dataset.hpp"
+#include "neural/nn/layer.hpp"
+#include "neural/ops/activations.hpp"
+#include "neural/ops/loss.hpp"
+#include "neural/optim/optimizer.hpp"
+
+#include <algorithm>
+#include <cstddef>
+#include <exception>
+#include <iostream>
+#include <numeric>
+#include <random>
+#include <vector>
+
+int main() {
+    try {
+        const neural::MNISTDataset training(
+            "../data/mnist/train-images-idx3-ubyte",
+            "../data/mnist/train-labels-idx1-ubyte"
+        );
+
+        const neural::MNISTDataset testing(
+            "../data/mnist/t10k-images-idx3-ubyte",
+            "../data/mnist/t10k-labels-idx1-ubyte"
+        );
+
+        std::cout << "Training images: " << training.size() << '\n';
+        std::cout << "Test images:     " << testing.size() << '\n';
+
+        // Network: 784 -> 512 -> 256 -> 128 -> 64 -> 10
+        neural::Dense fc1(784, 512, neural::WeightInit::He, 101);
+        neural::Dense fc2(512, 256, neural::WeightInit::He, 102);
+        neural::Dense fc3(256, 128, neural::WeightInit::He, 103);
+        neural::Dense fc4(128, 64, neural::WeightInit::He, 104);
+        neural::Dense fc5(64, 10, neural::WeightInit::Xavier, 105);
+
+        neural::ReLU relu1;
+        neural::ReLU relu2;
+        neural::ReLU relu3;
+        neural::ReLU relu4;
+
+        neural::SGD optimizer(0.01F);
+
+        constexpr std::size_t epochs = 1;
+        constexpr std::size_t report_interval = 5000;
+
+        std::vector<std::size_t> indices(training.size());
+        std::iota(indices.begin(), indices.end(), 0);
+
+        std::mt19937 rng(42);
+
+        // Training
+        for (std::size_t epoch = 0; epoch < epochs; ++epoch) {
+            std::shuffle(indices.begin(), indices.end(), rng);
+
+            float interval_loss = 0.0F;
+            std::size_t interval_count = 0;
+
+            std::cout << "\nEpoch " << epoch + 1 << '/' << epochs << '\n';
+
+            for (std::size_t step = 0; step < indices.size(); ++step) {
+                const std::size_t index = indices[step];
+
+                const neural::Tensor input = training.image(index);
+                const std::size_t target = training.label(index);
+
+                // Forward propagation
+                const neural::Tensor z1 = fc1.forward(input);
+                const neural::Tensor a1 = relu1.forward(z1);
+
+                const neural::Tensor z2 = fc2.forward(a1);
+                const neural::Tensor a2 = relu2.forward(z2);
+
+                const neural::Tensor z3 = fc3.forward(a2);
+                const neural::Tensor a3 = relu3.forward(z3);
+
+                const neural::Tensor z4 = fc4.forward(a3);
+                const neural::Tensor a4 = relu4.forward(z4);
+
+                const neural::Tensor logits = fc5.forward(a4);
+
+                const neural::LossResult result =
+                    neural::softmax_cross_entropy(logits, target);
+
+                interval_loss += result.loss;
+                ++interval_count;
+
+                // Backpropagation: output to input
+                neural::Tensor gradient = fc5.backward(
+                    result.logits_gradient
+                );
+
+                gradient = relu4.backward(gradient);
+                gradient = fc4.backward(gradient);
+
+                gradient = relu3.backward(gradient);
+                gradient = fc3.backward(gradient);
+
+                gradient = relu2.backward(gradient);
+                gradient = fc2.backward(gradient);
+
+                gradient = relu1.backward(gradient);
+                (void)fc1.backward(gradient);
+
+                // Update parameters only after all gradients are calculated.
+                optimizer.step(fc1);
+                optimizer.step(fc2);
+                optimizer.step(fc3);
+                optimizer.step(fc4);
+                optimizer.step(fc5);
+
+                if ((step + 1) % report_interval == 0 ||
+                    step + 1 == indices.size()) {
+                    std::cout
+                        << "  Samples: " << step + 1 << '/'
+                        << indices.size()
+                        << " | Mean loss: "
+                        << interval_loss /
+                               static_cast<float>(interval_count)
+                        << '\n';
+
+                    interval_loss = 0.0F;
+                    interval_count = 0;
+                }
+            }
+        }
+
+        // Evaluation: no parameter updates on test data.
+        std::size_t correct = 0;
+        double total_loss = 0.0;
+
+        for (std::size_t i = 0; i < testing.size(); ++i) {
+            const neural::Tensor input = testing.image(i);
+            const std::size_t target = testing.label(i);
+
+            const neural::Tensor z1 = fc1.forward(input);
+            const neural::Tensor a1 = relu1.forward(z1);
+
+            const neural::Tensor z2 = fc2.forward(a1);
+            const neural::Tensor a2 = relu2.forward(z2);
+
+            const neural::Tensor z3 = fc3.forward(a2);
+            const neural::Tensor a3 = relu3.forward(z3);
+
+            const neural::Tensor z4 = fc4.forward(a3);
+            const neural::Tensor a4 = relu4.forward(z4);
+
+            const neural::Tensor logits = fc5.forward(a4);
+
+            const auto result =
+                neural::softmax_cross_entropy(logits, target);
+
+            total_loss += static_cast<double>(result.loss);
+
+            const auto predicted_it = std::max_element(
+                logits.data().begin(),
+                logits.data().end()
+            );
+
+            const auto predicted = static_cast<std::size_t>(
+                std::distance(logits.data().begin(), predicted_it)
+            );
+
+            if (predicted == target) {
+                ++correct;
+            }
+
+            if ((i + 1) % 1000 == 0) {
+                std::cout << "Evaluated " << i + 1 << '/'
+                          << testing.size() << " test images\n";
+            }
+        }
+
+        const double accuracy =
+            100.0 * static_cast<double>(correct) /
+            static_cast<double>(testing.size());
+
+        std::cout << "\nTraining complete.\n"
+                  << "Test accuracy: " << accuracy << "% ("
+                  << correct << '/' << testing.size() << ")\n"
+                  << "Mean test loss: "
+                  << total_loss / static_cast<double>(testing.size())
+                  << '\n';
+
+        return 0;
+    } catch (const std::exception& error) {
+        std::cerr << "Error: " << error.what() << '\n';
+        return 1;
+    }
+}
