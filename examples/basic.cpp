@@ -7,10 +7,82 @@
 #include <algorithm>
 #include <cstddef>
 #include <exception>
+#include <fstream>
+#include <iomanip>
 #include <iostream>
+#include <limits>
 #include <numeric>
 #include <random>
+#include <stdexcept>
 #include <vector>
+
+namespace {
+
+void save_tensor(std::ofstream& file,
+                 const char* name,
+                 const neural::Tensor& tensor) {
+    file << name << '\n';
+    file << tensor.rank();
+
+    for (const std::size_t dimension : tensor.shape()) {
+        file << ' ' << dimension;
+    }
+    file << '\n';
+
+    std::size_t count = 0;
+
+    for (const float value : tensor.data()) {
+        file << value << ' ';
+
+        if (++count % 8 == 0) {
+            file << '\n';
+        }
+    }
+
+    if (count % 8 != 0) {
+        file << '\n';
+    }
+}
+
+void save_layer(std::ofstream& file,
+                const char* name,
+                const neural::Dense& layer) {
+    file << "LAYER " << name << '\n';
+    save_tensor(file, "WEIGHTS", layer.weights());
+    save_tensor(file, "BIAS", layer.bias());
+}
+
+void save_model(const char* path,
+                const neural::Dense& fc1,
+                const neural::Dense& fc2,
+                const neural::Dense& fc3,
+                const neural::Dense& fc4,
+                const neural::Dense& fc5) {
+    std::ofstream file(path);
+
+    if (!file) {
+        throw std::runtime_error("Could not open model checkpoint");
+    }
+
+    file << std::setprecision(
+        std::numeric_limits<float>::max_digits10
+    );
+
+    file << "NEURAL_ENGINE_CHECKPOINT 1\n";
+    file << "ARCHITECTURE 784 512 256 128 64 10\n";
+
+    save_layer(file, "fc1", fc1);
+    save_layer(file, "fc2", fc2);
+    save_layer(file, "fc3", fc3);
+    save_layer(file, "fc4", fc4);
+    save_layer(file, "fc5", fc5);
+
+    if (!file) {
+        throw std::runtime_error("Failed while writing model checkpoint");
+    }
+}
+
+} // namespace
 
 int main() {
     try {
@@ -41,7 +113,7 @@ int main() {
 
         neural::SGD optimizer(0.01F);
 
-        constexpr std::size_t epochs = 1;
+        constexpr std::size_t epochs = 5;
         constexpr std::size_t report_interval = 5000;
 
         std::vector<std::size_t> indices(training.size());
@@ -53,7 +125,7 @@ int main() {
         for (std::size_t epoch = 0; epoch < epochs; ++epoch) {
             std::shuffle(indices.begin(), indices.end(), rng);
 
-            float interval_loss = 0.0F;
+            double interval_loss = 0.0;
             std::size_t interval_count = 0;
 
             std::cout << "\nEpoch " << epoch + 1 << '/' << epochs << '\n';
@@ -82,13 +154,12 @@ int main() {
                 const neural::LossResult result =
                     neural::softmax_cross_entropy(logits, target);
 
-                interval_loss += result.loss;
+                interval_loss += static_cast<double>(result.loss);
                 ++interval_count;
 
-                // Backpropagation: output to input
-                neural::Tensor gradient = fc5.backward(
-                    result.logits_gradient
-                );
+                // Backpropagation
+                neural::Tensor gradient =
+                    fc5.backward(result.logits_gradient);
 
                 gradient = relu4.backward(gradient);
                 gradient = fc4.backward(gradient);
@@ -102,7 +173,7 @@ int main() {
                 gradient = relu1.backward(gradient);
                 (void)fc1.backward(gradient);
 
-                // Update parameters only after all gradients are calculated.
+                // Update only after all gradients have been calculated.
                 optimizer.step(fc1);
                 optimizer.step(fc2);
                 optimizer.step(fc3);
@@ -116,14 +187,22 @@ int main() {
                         << indices.size()
                         << " | Mean loss: "
                         << interval_loss /
-                               static_cast<float>(interval_count)
+                               static_cast<double>(interval_count)
                         << '\n';
 
-                    interval_loss = 0.0F;
+                    interval_loss = 0.0;
                     interval_count = 0;
                 }
             }
         }
+
+        // Save trained parameters as plain text.
+        save_model(
+            "../mnist_model.txt",
+            fc1, fc2, fc3, fc4, fc5
+        );
+
+        std::cout << "\nModel saved to ../mnist_model.txt\n";
 
         // Evaluation: no parameter updates on test data.
         std::size_t correct = 0;

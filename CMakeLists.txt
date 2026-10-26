@@ -1,8 +1,10 @@
+
 cmake_minimum_required(VERSION 3.20)
 project(NeuralEngine VERSION 0.1.0 LANGUAGES CXX)
 
 option(NEURAL_BUILD_TESTS "Build the test suite" ON)
 option(NEURAL_BUILD_EXAMPLES "Build examples" ON)
+option(NEURAL_BUILD_STUDIO "Build the Raylib Studio GUI" ON)
 
 add_library(neural_engine
     src/core/device.cpp
@@ -16,12 +18,15 @@ add_library(neural_engine
     src/optim/optimizer.cpp
     src/data/dataset.cpp
 )
+
 target_compile_features(neural_engine PUBLIC cxx_std_20)
+
 target_include_directories(neural_engine
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>
 )
+
 set_target_properties(neural_engine PROPERTIES
     CXX_EXTENSIONS OFF
     VERSION ${PROJECT_VERSION}
@@ -31,20 +36,58 @@ set_target_properties(neural_engine PROPERTIES
 if(MSVC)
     target_compile_options(neural_engine PRIVATE /W4 /permissive-)
 else()
-    target_compile_options(neural_engine PRIVATE -Wall -Wextra -Wpedantic -Wconversion -Wshadow)
+    target_compile_options(neural_engine PRIVATE
+        -Wall -Wextra -Wpedantic -Wconversion -Wshadow
+    )
 endif()
 
 if(NEURAL_BUILD_TESTS)
     enable_testing()
-    add_executable(neural_engine_tests tests/test_main.cpp)
+
+    add_executable(neural_engine_tests
+        tests/test_main.cpp
+    )
     target_link_libraries(neural_engine_tests PRIVATE neural_engine)
     add_test(NAME neural_engine_tests COMMAND neural_engine_tests)
-    add_executable(neural_gradient_tests tests/test_gradients.cpp)
-target_link_libraries(neural_gradient_tests PRIVATE neural_engine)
-add_test(NAME neural_gradient_tests COMMAND neural_gradient_tests)
+
+    add_executable(neural_gradient_tests
+        tests/test_gradients.cpp
+    )
+    target_link_libraries(neural_gradient_tests PRIVATE neural_engine)
+    add_test(NAME neural_gradient_tests COMMAND neural_gradient_tests)
 endif()
 
 if(NEURAL_BUILD_EXAMPLES)
-    add_executable(basic_example examples/basic.cpp)
+    add_executable(basic_example
+        examples/basic.cpp
+    )
     target_link_libraries(basic_example PRIVATE neural_engine)
+endif()
+
+if(NEURAL_BUILD_STUDIO)
+    find_package(raylib CONFIG REQUIRED)
+    find_package(Threads REQUIRED)
+
+    add_executable(neural_studio
+        examples/studio.cpp
+    )
+
+    target_compile_features(neural_studio PRIVATE cxx_std_20)
+    set_target_properties(neural_studio PROPERTIES
+        CXX_EXTENSIONS OFF
+    )
+
+    if(MSVC)
+        target_compile_options(neural_studio PRIVATE /W4 /permissive-)
+    else()
+        target_compile_options(neural_studio PRIVATE
+            -Wall -Wextra -Wpedantic -Wconversion -Wshadow
+        )
+    endif()
+
+    target_link_libraries(neural_studio PRIVATE
+        neural_engine
+        raylib
+        Threads::Threads
+    )
 endif()

@@ -17,7 +17,7 @@
 *.pdb
 
 # MNIST dataset (download separately)
-/data/mnist/
+]
 
 
 # Generated compile database

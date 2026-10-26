@@ -1,0 +1,1870 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NeuralEngine: From Numbers to a Trained Neural Network in C++20</title>
+
+  <!-- Google Fonts: Merriweather (Serif) & Inter (Sans) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Merriweather:ital,wght@0,300;0,400;0,700;1,300;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <!-- KaTeX for academic mathematical typography -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+          onload="renderMathInElement(document.body, {delimiters: [
+            {left: '$$', right: '$$', display: true},
+            {left: '\\[', right: '\\]', display: true},
+            {left: '$', right: '$', display: false},
+            {left: '\\(', right: '\\)', display: false}
+          ]});"></script>
+
+  <style>
+    /*
+     * Theme Inspired by "The Spinning ASCII Donut":
+     * - Deep Royal / Midnight Blue Gradient Hero Header
+     * - Clean Paper-White Content Canvas
+     * - Blue Vertical Left-Bar Section Headings
+     * - Dark Terminal Slate Cards for Interactive Demos & Code
+     * - Neon Terminal Green Canvas / Visual Output
+     * - Smooth Purple-Indigo Gradient Pill Buttons
+     */
+    :root {
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --page-width: 860px;
+      --text: #1e293b;
+      --text-muted: #64748b;
+      --line: #e2e8f0;
+      
+      /* Primary Theme Blues */
+      --hero-start: #1b3565;
+      --hero-end: #14274c;
+      --accent-blue: #1e40af;
+      --accent-blue-bar: #2563eb;
+      --accent-blue-light: #eff6ff;
+      
+      /* Dark Terminal Card Colors */
+      --terminal-bg: #111827;
+      --terminal-surface: #1e293b;
+      --terminal-border: #334155;
+      --terminal-green: #4ade80;
+      --terminal-green-dim: #22c55e;
+      
+      /* Button Gradient */
+      --btn-grad: linear-gradient(135deg, #5b5fc7 0%, #7e57c2 100%);
+      --btn-grad-hover: linear-gradient(135deg, #4f53b8 0%, #6e48b0 100%);
+      --btn-shadow: 0 4px 14px rgba(107, 92, 231, 0.38);
+
+      /* Typography */
+      --font-serif: "Merriweather", "Georgia", serif;
+      --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-mono: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: var(--font-serif);
+      font-size: 17px;
+      line-height: 1.75;
+      text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Hero Banner Header (Matching screenshot exactly) */
+    .hero-banner {
+      background: linear-gradient(180deg, var(--hero-start) 0%, var(--hero-end) 100%);
+      color: #ffffff;
+      padding: 4.5rem 1.5rem 3.5rem;
+      text-align: center;
+      box-shadow: 0 4px 20px rgba(15, 23, 42, 0.15);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .hero-inner {
+      max-width: var(--page-width);
+      margin: 0 auto;
+    }
+
+    .hero-title {
+      font-family: var(--font-serif);
+      font-size: 2.45rem;
+      font-weight: 400;
+      letter-spacing: -0.015em;
+      line-height: 1.25;
+      margin-bottom: 0.85rem;
+      color: #ffffff;
+    }
+
+    .hero-subtitle {
+      font-family: var(--font-serif);
+      font-size: 1.15rem;
+      font-style: italic;
+      color: #cbd5e1;
+      font-weight: 300;
+      margin-bottom: 1.75rem;
+      letter-spacing: 0.01em;
+    }
+
+    .hero-meta {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 1.5rem;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: #93c5fd;
+      padding-top: 1rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.15);
+    }
+
+    .hero-meta span::before {
+      content: "▪ ";
+      color: #60a5fa;
+    }
+
+    /* Content Area */
+    .content-container {
+      max-width: var(--page-width);
+      margin: 0 auto;
+      padding: 3rem 1.5rem 7rem;
+      background: var(--card-bg);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      border-left: 1px solid var(--line);
+      border-right: 1px solid var(--line);
+    }
+
+    /* Headings with screenshot's signature blue vertical bar */
+    h2 {
+      font-family: var(--font-serif);
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #1e3a8a;
+      margin: 3.5rem 0 1.25rem;
+      padding-left: 0.85rem;
+      border-left: 4.5px solid var(--accent-blue-bar);
+      line-height: 1.3;
+      letter-spacing: -0.01em;
+    }
+
+    h3 {
+      font-family: var(--font-sans);
+      font-size: 1.18rem;
+      font-weight: 600;
+      margin: 2.2rem 0 0.75rem;
+      color: #0f172a;
+    }
+
+    h4 {
+      font-family: var(--font-sans);
+      font-size: 0.92rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--accent-blue);
+      margin: 1.5rem 0 0.5rem;
+    }
+
+    p { margin-bottom: 1.3rem; }
+
+    ul, ol {
+      margin: 0 0 1.4rem 1.7rem;
+    }
+
+    li { margin-bottom: 0.45rem; }
+
+    strong { font-weight: 700; color: #0f172a; }
+    em { font-style: italic; }
+
+    code {
+      font-family: var(--font-mono);
+      font-size: 0.86em;
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      padding: 0.15em 0.35em;
+      color: #0f172a;
+    }
+
+    pre {
+      background: var(--terminal-bg);
+      border: 1px solid var(--terminal-border);
+      border-radius: 8px;
+      padding: 1.15rem 1.25rem;
+      overflow-x: auto;
+      font-family: var(--font-mono);
+      font-size: 0.84rem;
+      line-height: 1.55;
+      margin: 1.4rem 0 1.8rem;
+      color: #e2e8f0;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    pre code {
+      background: none;
+      border: none;
+      padding: 0;
+      font-size: inherit;
+      color: inherit;
+    }
+
+    /* Callout Cards */
+    .callout {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 1.1rem 1.35rem;
+      margin: 1.7rem 0 2.1rem;
+      font-size: 0.94rem;
+      background: #f8fafc;
+    }
+
+    .callout-title {
+      font-family: var(--font-sans);
+      font-weight: 700;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.45rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .callout-math {
+      background: var(--accent-blue-light);
+      border-color: #bfdbfe;
+      border-left: 4.5px solid var(--accent-blue-bar);
+    }
+    .callout-math .callout-title { color: var(--accent-blue); }
+
+    .callout-impl {
+      background: #f1f5f9;
+      border-color: #cbd5e1;
+      border-left: 4.5px solid #334155;
+    }
+    .callout-impl .callout-title { color: #1e293b; }
+
+    .callout-source {
+      background: #f0fdf4;
+      border-color: #bbf7d0;
+      border-left: 4.5px solid #16a34a;
+    }
+    .callout-source .callout-title { color: #15803d; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: var(--font-sans);
+      font-size: 0.88rem;
+      margin: 1.6rem 0 2.2rem;
+    }
+
+    th, td {
+      border: 1px solid var(--line);
+      padding: 0.65rem 0.85rem;
+      text-align: left;
+    }
+
+    th {
+      background: #f1f5f9;
+      color: #0f172a;
+      font-weight: 600;
+      border-bottom: 2px solid var(--accent-blue);
+    }
+
+    hr {
+      border: 0;
+      border-top: 1px solid var(--line);
+      margin: 4rem 0;
+    }
+
+    /* Dark Interactive Instrument Panels (Matching Screenshot) */
+    .widget-panel {
+      background: var(--terminal-bg);
+      border: 1px solid var(--terminal-border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin: 2.2rem 0;
+      color: #f8fafc;
+      box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.25);
+    }
+
+    .widget-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.1rem;
+      padding-bottom: 0.65rem;
+      border-bottom: 1px solid var(--terminal-border);
+    }
+
+    .widget-title {
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: 1rem;
+      color: #f1f5f9;
+    }
+
+    .widget-badge {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: 9999px;
+      background: rgba(59, 130, 246, 0.2);
+      color: #93c5fd;
+      border: 1px solid rgba(59, 130, 246, 0.4);
+      text-transform: uppercase;
+      font-weight: 500;
+    }
+
+    .widget-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 0.85rem;
+      margin-bottom: 1.1rem;
+    }
+
+    .widget-field {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .widget-field label {
+      font-family: var(--font-mono);
+      font-size: 0.74rem;
+      color: #94a3b8;
+    }
+
+    .widget-field input, .widget-field select {
+      padding: 0.45rem 0.6rem;
+      font-family: var(--font-mono);
+      font-size: 0.86rem;
+      border: 1px solid var(--terminal-border);
+      border-radius: 6px;
+      background: var(--terminal-surface);
+      color: #ffffff;
+      transition: border-color 0.15s;
+    }
+
+    .widget-field input:focus, .widget-field select:focus {
+      outline: none;
+      border-color: #60a5fa;
+      box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.25);
+    }
+
+    .widget-output {
+      background: #090d16;
+      border: 1px solid var(--terminal-border);
+      border-left: 3.5px solid var(--terminal-green);
+      border-radius: 6px;
+      padding: 0.95rem;
+      font-family: var(--font-mono);
+      font-size: 0.83rem;
+      line-height: 1.55;
+      white-space: pre-wrap;
+      overflow-x: auto;
+      color: var(--terminal-green);
+    }
+
+    /* Canvas Layout & Signature Violet Pill Button */
+    .canvas-layout {
+      display: flex;
+      gap: 1.5rem;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      margin-top: 0.85rem;
+    }
+
+    #drawingCanvas {
+      background: #090d16;
+      border: 2px solid var(--terminal-border);
+      border-radius: 8px;
+      cursor: crosshair;
+      image-rendering: pixelated;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+    }
+
+    .canvas-controls {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.75rem;
+      width: 100%;
+      max-width: 320px;
+    }
+
+    /* Signature Violet/Purple Pill Button from screenshot */
+    button, .pill-btn {
+      padding: 0.55rem 1.6rem;
+      font-family: var(--font-sans);
+      font-size: 0.88rem;
+      font-weight: 500;
+      border: none;
+      background: var(--btn-grad);
+      color: #ffffff;
+      border-radius: 9999px;
+      cursor: pointer;
+      box-shadow: var(--btn-shadow);
+      transition: all 0.2s ease-in-out;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    button:hover, .pill-btn:hover {
+      background: var(--btn-grad-hover);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px rgba(107, 92, 231, 0.5);
+    }
+
+    button:active, .pill-btn:active {
+      transform: translateY(0);
+    }
+
+    .bar-chart {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      width: 100%;
+      margin-top: 0.5rem;
+    }
+
+    .bar-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--font-mono);
+      font-size: 0.74rem;
+      color: #cbd5e1;
+    }
+
+    .bar-outer {
+      flex: 1;
+      height: 9px;
+      background: var(--terminal-surface);
+      border-radius: 9999px;
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #3b82f6, #60a5fa);
+      width: 0%;
+      transition: width 0.12s ease-out;
+    }
+
+    .toc {
+      background: #f8fafc;
+      border: 1px solid var(--line);
+      border-left: 4.5px solid var(--accent-blue-bar);
+      border-radius: 6px;
+      padding: 1.35rem 1.6rem;
+      margin: 2.5rem 0 3.5rem;
+      font-family: var(--font-sans);
+      font-size: 0.88rem;
+    }
+
+    .toc-title {
+      font-weight: 700;
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--accent-blue);
+      margin-bottom: 0.85rem;
+    }
+
+    .toc ol {
+      margin-bottom: 0;
+      padding-left: 1.3rem;
+    }
+
+    .toc li { margin-bottom: 0.35rem; }
+    .toc a { color: var(--text); text-decoration: none; }
+    .toc a:hover { text-decoration: underline; color: var(--accent-blue-bar); }
+
+    footer {
+      font-size: 0.86rem;
+      color: var(--text-muted);
+      text-align: center;
+      margin-top: 3.5rem;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- HERO BANNER (Matches screenshot style) -->
+  <div class="hero-banner">
+    <div class="hero-inner">
+      <h1 class="hero-title">The NeuralEngine Architecture &amp; Mathematics</h1>
+      <div class="hero-subtitle">From individual numbers to a trained neural network in C++20</div>
+      <div class="hero-meta">
+        <span>Language: C++20 Standard</span>
+        <span>Build System: CMake</span>
+        <span>Architecture: Fully Connected Feedforward</span>
+        <span>Target Problem: MNIST (784 &rarr; 10)</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="content-container">
+
+    <p>
+      This document is a technical learning record for <strong>NeuralEngine</strong>: the mathematics behind the network, the derivations that connect the equations, the implementation ideas behind each operation, and the way the components work together to train a model on MNIST.
+    </p>
+    <p>
+      It is deliberately organised as a sequence. We begin with a single number and a single trainable parameter, introduce derivatives and gradient descent, generalise the calculations into vectors and matrices, then combine those operations into an entire neural network.
+    </p>
+
+    <h3>How to read this document</h3>
+    <p>Three kinds of information appear throughout:</p>
+    <ul>
+      <li><strong>Mathematical result:</strong> the equation and the reasoning that establish it.</li>
+      <li><strong>Implementation pattern:</strong> C++ illustrating how the mathematical operation can be implemented.</li>
+      <li><strong>NeuralEngine source detail:</strong> behaviour visible in the code and project details discussed while building NeuralEngine.</li>
+    </ul>
+    <p>
+      The C++ snippets are not all copied from the project's source files. Where an exact implementation was available in the Studio code, that will be identified. Elsewhere, code is a reference implementation of the mathematics, not a claim that every line matches your library exactly.
+    </p>
+
+    <!-- TABLE OF CONTENTS -->
+    <div class="toc">
+      <div class="toc-title">Table of Contents</div>
+      <ol>
+        <li><a href="#part-1">Part I — What we actually built</a></li>
+        <li><a href="#part-2">Part II — The mathematical foundations</a></li>
+        <li><a href="#part-3">Part III — From scalars to vectors and matrices</a></li>
+        <li><a href="#part-4">Part IV — Representing the mathematics in memory</a></li>
+        <li><a href="#part-5">Part V — The dense layer</a></li>
+        <li><a href="#part-6">Part VI — Why a neural network needs activations</a></li>
+        <li><a href="#part-7">Part VII — The complete forward pass</a></li>
+        <li><a href="#part-8">Part VIII — Softmax: converting class scores to probabilities</a></li>
+        <li><a href="#part-9">Part IX — Entropy, cross-entropy and classification loss</a></li>
+        <li><a href="#part-10">Part X — The most important derivative: softmax plus cross-entropy</a></li>
+        <li><a href="#part-11">Part XI — Backpropagation: carrying the loss gradient backwards</a></li>
+        <li><a href="#part-12">Part XII — Derive the dense-layer backward pass</a></li>
+        <li><a href="#part-13">Part XIII — Backpropagation through a whole network</a></li>
+        <li><a href="#part-14">Part XIV — SGD and the actual training step</a></li>
+        <li><a href="#part-15">Part XV — Initialising the weights</a></li>
+        <li><a href="#part-16">Part XVI — Training on MNIST</a></li>
+        <li><a href="#part-17">Part XVII — Epochs, shuffling and training progress</a></li>
+        <li><a href="#part-18">Part XVIII — Evaluation: what the model has actually learned</a></li>
+        <li><a href="#part-19">Part XIX — Saving and loading the model</a></li>
+        <li><a href="#part-20">Part XX — The Studio implementation</a></li>
+        <li><a href="#part-21">Part XXI — What the tests establish</a></li>
+        <li><a href="#part-22">Part XXII — A detailed example of one full classification step</a></li>
+        <li><a href="#part-23">Part XXIII — Why all the derivations fit together</a></li>
+        <li><a href="#part-24">Part XXIV — Implementation map for NeuralEngine</a></li>
+        <li><a href="#part-25">Part XXV — Common conceptual mistakes to avoid</a></li>
+        <li><a href="#part-26">Part XXVI — Numerical and software engineering considerations</a></li>
+        <li><a href="#part-27">Part XXVII — A compact formula reference</a></li>
+        <li><a href="#part-28">Part XXVIII — Interactive learning suite &amp; compilation guide</a></li>
+      </ol>
+    </div>
+
+    <!-- PART I -->
+    <section id="part-1">
+      <h2>Part I — What we actually built</h2>
+
+      <h3>1. What is NeuralEngine?</h3>
+      <p>
+        NeuralEngine is a neural-network engine written in C++20. Its purpose is not merely to call a machine-learning library, but to implement the fundamental operations needed to train and use a neural network.
+      </p>
+      <p>The project brings together:</p>
+      <ul>
+        <li>Tensor storage and indexing.</li>
+        <li>Dense, or fully connected, layers.</li>
+        <li>Activation functions, including ReLU.</li>
+        <li>Softmax and cross-entropy loss.</li>
+        <li>Gradients and backpropagation.</li>
+        <li>Stochastic gradient descent.</li>
+        <li>Weight initialisation.</li>
+        <li>MNIST image and label loading.</li>
+        <li>Model evaluation and prediction.</li>
+        <li>Saving and loading model checkpoints.</li>
+        <li>Tests of numerical behaviour and training-related functionality.</li>
+        <li>A Raylib-based Studio interface for working with models and datasets.</li>
+      </ul>
+      <p>
+        The central achievement is the connection between the mathematics and a working implementation. A model is not trained because its source code contains the word <em>backpropagation</em>. It is trained because the implementation calculates how the loss changes with respect to each parameter and then uses those gradients to adjust the parameters.
+      </p>
+
+      <h3>2. The experiment</h3>
+      <p>The architecture used in the Studio configuration is:</p>
+      \[
+      784 \rightarrow 512 \rightarrow 256 \rightarrow 128 \rightarrow 64 \rightarrow 10
+      \]
+      <p>
+        This is a <strong>fully connected feed-forward network</strong>, not a convolutional neural network.
+      </p>
+      <p>
+        The input is a flattened \(28\times28\) image, and the ten outputs correspond to the ten digit classes, \(0\) through \(9\).
+      </p>
+      <p>
+        The reported training run used the MNIST dataset, with 60,000 training images and 10,000 test images. The Studio's displayed defaults included five epochs, a learning rate of \(0.01\), and He initialisation for the hidden layers. The Studio's network construction code selects Xavier initialisation for the final dense layer.
+      </p>
+      <p>
+        The project was reported to reach approximately <strong>97.81% test accuracy</strong> after five epochs. (A single-epoch run with default parameters attained <strong>94.61%</strong> test accuracy, 9,461 / 10,000 correct, mean test loss 0.178783).
+      </p>
+
+      <div class="callout callout-math">
+        <div class="callout-title">Mathematical Result: What that result means</div>
+        The model learned weights and biases that allowed it to classify most images in the test set correctly. It does not mean every digit is classified correctly. It does not prove the architecture is optimal. It does demonstrate that the implemented tensor operations, forward pass, loss calculation, backpropagation, optimisation, dataset pipeline, and evaluation process can work together as a functioning learning system.
+      </div>
+    </section>
+
+    <!-- PART II -->
+    <section id="part-2">
+      <h2>Part II — The mathematical foundations</h2>
+
+      <h3>3. Start with a function and a parameter</h3>
+      <p>
+        Before considering layers of neurons, consider the simplest possible learning problem. Suppose we want a model to predict a value \(y\) from an input \(x\). We use the model:
+      </p>
+      \[
+      \hat y = wx
+      \]
+      <p>where:</p>
+      <ul>
+        <li>\(x\) is the input.</li>
+        <li>\(w\) is a trainable weight.</li>
+        <li>\(\hat y\) is the prediction.</li>
+        <li>\(y\) is the desired answer.</li>
+      </ul>
+      <p>
+        Imagine that \(x=3\) and \(y=12\), and initially \(w=2\). The model predicts:
+      </p>
+      \[
+      \hat y = wx = 2(3) = 6.
+      \]
+      <p>The prediction is too small. How should we change \(w\)? We need a numerical measure of how wrong the model is.</p>
+
+      <h3>4. Loss: measuring prediction error</h3>
+      <p>
+        A <strong>loss function</strong> maps a prediction and its target to a number representing the error for that example. A simple choice for regression is squared error:
+      </p>
+      \[
+      L = (\hat y - y)^2.
+      \]
+      <p>With our example:</p>
+      \[
+      L = (6 - 12)^2 = (-6)^2 = 36.
+      \]
+      <p>A smaller loss is better, provided that the loss measures the behaviour we actually want.</p>
+      <p>For differentiation, it is common to include a factor of one-half:</p>
+      \[
+      L = \frac{1}{2}(\hat y - y)^2.
+      \]
+      <p>The numerical loss becomes:</p>
+      \[
+      L = \frac{1}{2}(6 - 12)^2 = \frac{1}{2}(36) = 18.
+      \]
+      <p>
+        The factor \(\frac{1}{2}\) does not change the location of the minimum. Its main benefit is that the factor of \(2\) produced by differentiating a square cancels with the \(\frac{1}{2}\).
+      </p>
+      <p>
+        This particular loss is useful for learning the mechanics of gradients. NeuralEngine's MNIST classifier instead uses <strong>softmax cross-entropy</strong>, which is a more suitable loss for this multiclass classification task.
+      </p>
+
+      <h3>5. Derivatives tell us how the loss changes</h3>
+      <p>
+        A derivative measures how a function changes when its input changes by a small amount. For a differentiable function \(f(w)\), the derivative at \(w\) is:
+      </p>
+      \[
+      f'(w) = \lim_{h\to0}\frac{f(w+h) - f(w)}{h}.
+      \]
+      <p>
+        The numerator is the change in the function value. The denominator is the change in the input. The limit asks what ratio emerges as the input change approaches zero.
+      </p>
+      <p>For the model above:</p>
+      \[
+      L(w) = \frac{1}{2}(wx - y)^2.
+      \]
+      <p>We want to know how the loss changes when we change \(w\). That is the derivative \(\frac{dL}{dw}\). Applying the chain rule:</p>
+      \[
+      \frac{dL}{dw} = \frac{dL}{d\hat y}\frac{d\hat y}{dw}.
+      \]
+      <p>First, \(L = \frac{1}{2}(\hat y - y)^2\), so:</p>
+      \[
+      \frac{dL}{d\hat y} = \hat y - y.
+      \]
+      <p>Next, \(\hat y = wx\), so, treating \(x\) as a constant:</p>
+      \[
+      \frac{d\hat y}{dw} = x.
+      \]
+      <p>Combining the results gives:</p>
+      <div class="callout callout-math">
+        <div class="callout-title">Mathematical Result: Scalar Weight Gradient</div>
+        \[
+        \boxed{\frac{dL}{dw} = (\hat y - y)x}
+        \]
+      </div>
+      <p>This is the gradient of the loss with respect to the weight. For our numerical example:</p>
+      \[
+      \frac{dL}{dw} = (6 - 12)(3) = (-6)(3) = -18.
+      \]
+      <p>
+        The gradient is negative. A small increase in \(w\) would decrease the loss locally. A small decrease in \(w\) would increase it locally.
+      </p>
+      <p>
+        The gradient does not directly tell us the perfect weight. It tells us a local direction of change and a measure of sensitivity.
+      </p>
+
+      <h3>6. Gradient descent: using the derivative to update the weight</h3>
+      <p>Gradient descent updates a parameter in the opposite direction to its gradient:</p>
+      <div class="callout callout-math">
+        <div class="callout-title">Mathematical Result: Gradient Descent Parameter Update</div>
+        \[
+        \boxed{w_{\text{new}} = w_{\text{old}} - \eta\frac{dL}{dw}}
+        \]
+      </div>
+      <p>where \(\eta\) is the learning rate. The learning rate controls the size of the update.</p>
+      <p>Take our values: \(w_{\text{old}} = 2\), \(\frac{dL}{dw} = -18\), and \(\eta = 0.1\). Then:</p>
+      \[
+      w_{\text{new}} = 2 - 0.1(-18) = 2 + 1.8 = 3.8.
+      \]
+      <p>The weight increased, as expected from the negative gradient. The new prediction is:</p>
+      \[
+      \hat y = 3.8(3) = 11.4.
+      \]
+      <p>The new squared-error loss is:</p>
+      \[
+      L = \frac{1}{2}(11.4 - 12)^2 = \frac{1}{2}(-0.6)^2 = \frac{1}{2}(0.36) = 0.18.
+      \]
+      <p>The loss fell from \(18\) to \(0.18\). This example captures the essential mechanism behind training:</p>
+      <ol>
+        <li>Make a prediction.</li>
+        <li>Measure the loss.</li>
+        <li>Calculate the loss gradient.</li>
+        <li>Update parameters in the opposite direction.</li>
+        <li>Repeat.</li>
+      </ol>
+      <p>A neural network performs the same conceptual sequence, but with many layers and often hundreds of thousands or millions of parameters.</p>
+
+      <!-- LIVE WIDGET 1 -->
+      <div class="widget-panel">
+        <div class="widget-header">
+          <span class="widget-title">Interactive Laboratory 1: Single Parameter Gradient Descent</span>
+          <span class="widget-badge">Scalar Math</span>
+        </div>
+        <div class="widget-grid">
+          <div class="widget-field">
+            <label for="w1-x">Input ($x$)</label>
+            <input type="number" id="w1-x" value="3" step="0.1">
+          </div>
+          <div class="widget-field">
+            <label for="w1-y">Target ($y$)</label>
+            <input type="number" id="w1-y" value="12" step="0.5">
+          </div>
+          <div class="widget-field">
+            <label for="w1-w">Weight ($w$)</label>
+            <input type="number" id="w1-w" value="2" step="0.1">
+          </div>
+          <div class="widget-field">
+            <label for="w1-eta">Learning Rate ($\eta$)</label>
+            <input type="number" id="w1-eta" value="0.1" step="0.01">
+          </div>
+        </div>
+        <div class="widget-output" id="w1-out">Calculating...</div>
+      </div>
+
+      <h3>7. A second worked example: calculate every parameter update</h3>
+      <p>Consider a single linear neuron with two input values:</p>
+      \[
+      x = \begin{bmatrix} 2 \\ -1 \end{bmatrix}
+      \]
+      <p>and two weights:</p>
+      \[
+      w = \begin{bmatrix} 0.5 \\ -0.25 \end{bmatrix}.
+      \]
+      <p>Let the bias be \(b = 0.1\). The output is:</p>
+      \[
+      \hat y = w_1 x_1 + w_2 x_2 + b.
+      \]
+      <p>Substitute the values:</p>
+      \[
+      \hat y = 0.5(2) + (-0.25)(-1) + 0.1 = 1 + 0.25 + 0.1 = 1.35.
+      \]
+      <p>Let the target be \(y = 2\), and use the half-squared-error loss:</p>
+      \[
+      L = \frac{1}{2}(\hat y - y)^2.
+      \]
+      <p>The error is:</p>
+      \[
+      \hat y - y = 1.35 - 2 = -0.65.
+      \]
+      <p>Thus:</p>
+      \[
+      L = \frac{1}{2}(-0.65)^2 = 0.21125.
+      \]
+      <p>Now differentiate with respect to each parameter. Because:</p>
+      \[
+      \frac{\partial \hat y}{\partial w_1} = x_1, \qquad \frac{\partial \hat y}{\partial w_2} = x_2, \qquad \frac{\partial \hat y}{\partial b} = 1,
+      \]
+      <p>the gradients are:</p>
+      \[
+      \frac{\partial L}{\partial w_1} = (\hat y - y)x_1 = (-0.65)(2) = -1.3,
+      \]
+      \[
+      \frac{\partial L}{\partial w_2} = (\hat y - y)x_2 = (-0.65)(-1) = 0.65,
+      \]
+      \[
+      \frac{\partial L}{\partial b} = \hat y - y = -0.65.
+      \]
+      <p>With learning rate \(\eta = 0.1\):</p>
+      \[
+      w_1' = 0.5 - 0.1(-1.3) = 0.5 + 0.13 = 0.63,
+      \]
+      \[
+      w_2' = -0.25 - 0.1(0.65) = -0.25 - 0.065 = -0.315,
+      \]
+      \[
+      b' = 0.1 - 0.1(-0.65) = 0.1 + 0.065 = 0.165.
+      \]
+      <p>The model has updated all three parameters. Each one received a different gradient because each parameter influences the output differently.</p>
+      <p>This small example introduces several ideas that remain true in a dense neural-network layer:</p>
+      <ul>
+        <li>Every weight has a gradient.</li>
+        <li>Every bias has a gradient.</li>
+        <li>The input influences the weight gradients.</li>
+        <li>The upstream error influences all these gradients.</li>
+        <li>All the updates use the same optimisation rule.</li>
+      </ul>
+    </section>
+
+    <!-- PART III -->
+    <section id="part-3">
+      <h2>Part III — From scalars to vectors and matrices</h2>
+
+      <h3>8. Why use vectors?</h3>
+      <p>
+        A neural network processes many input features at once. For an MNIST image, the input consists of 784 pixel values. Writing 784 separate scalar equations would be cumbersome and would obscure the fact that the calculations follow the same pattern.
+      </p>
+      <p>Instead, represent the input as a vector:</p>
+      \[
+      \mathbf{x} = \begin{bmatrix} x_1 \\ x_2 \\ \vdots \\ x_n \end{bmatrix}, \qquad
+      \mathbf{w} = \begin{bmatrix} w_1 \\ w_2 \\ \vdots \\ w_n \end{bmatrix}.
+      \]
+      <p>The weighted sum can be written using a dot product:</p>
+      \[
+      z = \mathbf{w}^T\mathbf{x} + b = w_1 x_1 + w_2 x_2 + \cdots + w_n x_n + b.
+      \]
+      <p>
+        The vector notation does not introduce a new mathematical operation. It expresses the same repeated multiplication and addition compactly. A vector of weights contains \(n\) independent trainable parameters, and each has its own partial derivative.
+      </p>
+
+      <h3>9. From one neuron to several neurons</h3>
+      <p>Suppose a layer receives three inputs and produces two outputs:</p>
+      \[
+      \mathbf{x} = \begin{bmatrix} x_1 \\ x_2 \\ x_3 \end{bmatrix}.
+      \]
+      <p>The two neurons each need three weights. Therefore, we can place their weights into a matrix:</p>
+      \[
+      W = \begin{bmatrix} w_{11} & w_{12} & w_{13} \\ w_{21} & w_{22} & w_{23} \end{bmatrix}.
+      \]
+      <p>The first row contains all weights for the first output neuron. The second row contains all weights for the second output neuron. Let \(\mathbf{b} = \begin{bmatrix} b_1 \\ b_2 \end{bmatrix}\). The complete layer calculation becomes:</p>
+      <div class="callout callout-math">
+        <div class="callout-title">Mathematical Result: Dense Layer Affine Transformation</div>
+        \[
+        \boxed{\mathbf{z} = W\mathbf{x} + \mathbf{b}}
+        \]
+      </div>
+      <p>In general, if a layer has \(n_{\text{in}}\) input features and \(n_{\text{out}}\) output neurons, then:</p>
+      \[
+      W \in \mathbb{R}^{n_{\text{out}}\times n_{\text{in}}}, \qquad \mathbf{x} \in \mathbb{R}^{n_{\text{in}}\times 1}, \qquad \mathbf{b} \in \mathbb{R}^{n_{\text{out}}\times 1}, \qquad \mathbf{z} \in \mathbb{R}^{n_{\text{out}}\times 1}.
+      \]
+      <p>
+        The inner dimensions must agree: \((2\times3)(3\times1) = (2\times1)\). A matrix with three columns cannot multiply a vector with four elements in this orientation. That is a dimension mismatch.
+      </p>
+
+      <h3>10. What matrix multiplication actually does</h3>
+      <p>For matrices \(A\) and \(B\), the product \(C = AB\) is defined by:</p>
+      \[
+      C_{ij} = \sum_k A_{ik}B_{kj}.
+      \]
+      <p>Each output element is a dot product between a row of \(A\) and a column of \(B\). For example:</p>
+      \[
+      A = \begin{bmatrix} 1 & 2 \\ 3 & 4 \end{bmatrix}, \qquad B = \begin{bmatrix} 5 & 6 \\ 7 & 8 \end{bmatrix}.
+      \]
+      <p>Then:</p>
+      \[
+      C_{11} = 1(5) + 2(7) = 19, \qquad C_{12} = 1(6) + 2(8) = 22,
+      \]
+      \[
+      C_{21} = 3(5) + 4(7) = 43, \qquad C_{22} = 3(6) + 4(8) = 50.
+      \]
+      \[
+      AB = \begin{bmatrix} 19 & 22 \\ 43 & 50 \end{bmatrix}.
+      \]
+      <p>Nothing more mysterious is happening inside a dense layer. The matrix multiplication computes the weighted sums for all its output neurons.</p>
+    </section>
+
+    <!-- PART IV -->
+    <section id="part-4">
+      <h2>Part IV — Representing the mathematics in memory</h2>
+
+      <h3>11. A tensor is data plus shape</h3>
+      <p>
+        NeuralEngine has a <code>Tensor</code> abstraction. Conceptually, a tensor is a collection of numerical values together with information describing its shape:
+      </p>
+      <ul>
+        <li>Scalar: one value.</li>
+        <li>Vector of length four: shape \([4]\).</li>
+        <li>Matrix with two rows and three columns: shape \([2,3]\).</li>
+        <li>Three-dimensional tensor: shape \([2,3,4]\).</li>
+      </ul>
+      <p>
+        The rank is the number of dimensions in the shape. The shape tells the program how to interpret the contiguous memory.
+      </p>
+
+      <h3>12. Why contiguous storage matters</h3>
+      <p>
+        C++ does not have to store a matrix as a nested structure of separately allocated rows (such as <code>std::vector&lt;std::vector&lt;float&gt;&gt;</code>). A matrix can be represented by a single contiguous array.
+      </p>
+      <p>For example, the matrix:</p>
+      \[
+      A = \begin{bmatrix} 10 & 20 & 30 \\ 40 & 50 & 60 \end{bmatrix}
+      \]
+      <p>can be stored in row-major order as:</p>
+      <pre><code>std::vector&lt;float&gt; values{ 10.0F, 20.0F, 30.0F, 40.0F, 50.0F, 60.0F }; // shape {2, 3}</code></pre>
+      <p>
+        For a two-dimensional matrix with \(R\) rows and \(C\) columns, the zero-based element \((i,j)\) has flat offset:
+      </p>
+      <div class="callout callout-math">
+        <div class="callout-title">Mathematical Result: Row-Major 2D Offset</div>
+        \[
+        \boxed{\operatorname{offset}(i,j) = iC + j}
+        \]
+      </div>
+      <p>For element \((1,2)\), \(\operatorname{offset} = 1(3) + 2 = 5\). <code>values[5]</code> is <code>60.0F</code>.</p>
+
+      <h3>13. General row-major indexing</h3>
+      <p>For a tensor with shape \([d_0, d_1, \ldots, d_{r-1}]\), the row-major strides are:</p>
+      \[
+      s_k = \prod_{j=k+1}^{r-1} d_j.
+      \]
+      <p>The flat offset for index tuple \((i_0, i_1, \ldots, i_{r-1})\) is:</p>
+      \[
+      \operatorname{offset} = \sum_{k=0}^{r-1} i_k s_k.
+      \]
+      <p>For shape \([2, 3, 4]\), strides are \([12, 4, 1]\). Index \((1, 2, 3)\) has offset:</p>
+      \[
+      1(12) + 2(4) + 3(1) = 12 + 8 + 3 = 23.
+      \]
+
+      <!-- LIVE WIDGET 2 -->
+      <div class="widget-panel">
+        <div class="widget-header">
+          <span class="widget-title">Interactive Laboratory 2: Row-Major Memory Mapping</span>
+          <span class="widget-badge">Memory Layout</span>
+        </div>
+        <div class="widget-grid">
+          <div class="widget-field">
+            <label for="w2-r">Rows ($R$)</label>
+            <input type="number" id="w2-r" value="2" min="1" max="8">
+          </div>
+          <div class="widget-field">
+            <label for="w2-c">Cols ($C$)</label>
+            <input type="number" id="w2-c" value="3" min="1" max="8">
+          </div>
+          <div class="widget-field">
+            <label for="w2-i">Target Row ($i$)</label>
+            <input type="number" id="w2-i" value="1" min="0" max="7">
+          </div>
+          <div class="widget-field">
+            <label for="w2-j">Target Col ($j$)</label>
+            <input type="number" id="w2-j" value="2" min="0" max="7">
+          </div>
+        </div>
+        <div class="widget-output" id="w2-out">Calculating...</div>
+      </div>
+
+      <h3>14. An illustrative Tensor implementation</h3>
+      <div class="callout callout-impl">
+        <div class="callout-title">Implementation Pattern: Reference C++ Tensor Implementation</div>
+<pre><code>#include &lt;cstddef&gt;
+#include &lt;initializer_list&gt;
+#include &lt;stdexcept&gt;
+#include &lt;vector&gt;
+
+class ExampleTensor {
+public:
+    explicit ExampleTensor(std::vector&lt;std::size_t&gt; shape)
+        : shape_(std::move(shape)),
+          values_(element_count(shape_), 0.0F) {}
+
+    float&amp; at(std::initializer_list&lt;std::size_t&gt; indices) {
+        return values_.at(offset(indices));
+    }
+
+    const float&amp; at(std::initializer_list&lt;std::size_t&gt; indices) const {
+        return values_.at(offset(indices));
+    }
+
+    const std::vector&lt;std::size_t&gt;&amp; shape() const noexcept {
+        return shape_;
+    }
+
+private:
+    static std::size_t element_count(const std::vector&lt;std::size_t&gt;&amp; shape) {
+        std::size_t count = 1;
+        for (const std::size_t dimension : shape) {
+            count *= dimension;
+        }
+        return count;
+    }
+
+    std::size_t offset(std::initializer_list&lt;std::size_t&gt; indices) const {
+        if (indices.size() != shape_.size()) {
+            throw std::invalid_argument("Incorrect number of tensor indices");
+        }
+        std::size_t flat = 0;
+        std::size_t dimension_index = 0;
+        for (const std::size_t index : indices) {
+            const std::size_t dimension = shape_[dimension_index++];
+            if (index &gt;= dimension) {
+                throw std::out_of_range("Tensor index out of range");
+            }
+            flat = flat * dimension + index;
+        }
+        return flat;
+    }
+
+    std::vector&lt;std::size_t&gt; shape_;
+    std::vector&lt;float&gt; values_;
+};</code></pre>
+      </div>
+
+      <h3>15. Why <code>std::span</code> came up</h3>
+      <p>
+        A <code>std::span&lt;T&gt;</code> describes a contiguous range of existing objects without owning the memory:
+      </p>
+      <pre><code>std::span&lt;float&gt; data();
+std::span&lt;const float&gt; data() const;</code></pre>
+      <p>
+        The mutable form allows changes to the tensor's elements; the const form prevents mutation. Crucially, a span does not extend the lifetime of the underlying data.
+      </p>
+
+      <h3>16. Reference matrix multiplication in C++</h3>
+      <div class="callout callout-impl">
+        <div class="callout-title">Implementation Pattern: Reference Row-Major Matmul</div>
+<pre><code>std::vector&lt;float&gt; matmul(
+    const std::vector&lt;float&gt;&amp; a,
+    const std::vector&lt;float&gt;&amp; b,
+    std::size_t m, std::size_t k, std::size_t n
+) {
+    if (a.size() != m * k || b.size() != k * n) {
+        throw std::invalid_argument("Invalid matrix storage");
+    }
+    std::vector&lt;float&gt; c(m * n, 0.0F);
+    for (std::size_t i = 0; i &lt; m; ++i) {
+        for (std::size_t p = 0; p &lt; k; ++p) {
+            const float a_ip = a[i * k + p];
+            for (std::size_t j = 0; j &lt; n; ++j) {
+                c[i * n + j] += a_ip * b[p * n + j];
+            }
+        }
+    }
+    return c;
+}</code></pre>
+      </div>
+    </section>
+
+    <!-- PART V -->
+    <section id="part-5">
+      <h2>Part V — The dense layer</h2>
+
+      <h3>17. The affine transformation</h3>
+      <p>A dense layer applies a learned linear transformation and adds a bias:</p>
+      \[
+      \boxed{\mathbf{z} = W\mathbf{a} + \mathbf{b}}
+      \]
+      <p>Consider a 2-input, 2-output layer:</p>
+      \[
+      \mathbf{a} = \begin{bmatrix} 2 \\ 1 \end{bmatrix}, \qquad
+      W = \begin{bmatrix} 0.5 & -0.25 \\ -1 & 0.75 \end{bmatrix}, \qquad
+      \mathbf{b} = \begin{bmatrix} 0.1 \\ 0.2 \end{bmatrix}.
+      \]
+      \[
+      z_1 = 0.5(2) + (-0.25)(1) + 0.1 = 1 - 0.25 + 0.1 = 0.85.
+      \]
+      \[
+      z_2 = (-1)(2) + 0.75(1) + 0.2 = -2 + 0.75 + 0.2 = -1.05.
+      \]
+      \[
+      \mathbf{z} = \begin{bmatrix} 0.85 \\ -1.05 \end{bmatrix}.
+      \]
+
+      <h3>18. Why do we need a bias?</h3>
+      <p>
+        Without the bias, a neuron calculates \(z = \mathbf{w}^T\mathbf{x}\). The hyperplane \(z=0\) passes through the origin. Adding \(b\) allows the decision boundary to shift freely.
+      </p>
+
+      <h3>19. The number of parameters in a dense layer</h3>
+      <div class="callout callout-math">
+        <div class="callout-title">Mathematical Result: Dense Layer Parameter Count</div>
+        \[
+        \boxed{N_{\text{parameters}} = n_{\text{in}}n_{\text{out}} + n_{\text{out}} = (n_{\text{in}} + 1)n_{\text{out}}}
+        \]
+      </div>
+      <p>For layer 1 (\(784 \rightarrow 512\)): \(784(512) + 512 = 401,920\) parameters.</p>
+
+      <h3>20. A dense layer in C++</h3>
+      <div class="callout callout-impl">
+        <div class="callout-title">Implementation Pattern: Dense Layer Forward Pass Loop</div>
+<pre><code>for (std::size_t o = 0; o &lt; output_size; ++o) {
+    float value = bias[o];
+    for (std::size_t i = 0; i &lt; input_size; ++i) {
+        value += weights[o * input_size + i] * input[i];
+    }
+    output[o] = value;
+}</code></pre>
+      </div>
+    </section>
+
+    <!-- PART VI -->
+    <section id="part-6">
+      <h2>Part VI — Why a neural network needs activations</h2>
+
+      <h3>21. Stacking linear layers is still linear</h3>
+      <p>Suppose we stack two affine layers with no activation:</p>
+      \[
+      \mathbf{z}_1 = W_1\mathbf{x} + \mathbf{b}_1, \qquad \mathbf{z}_2 = W_2\mathbf{z}_1 + \mathbf{b}_2.
+      \]
+      \[
+      \mathbf{z}_2 = W_2(W_1\mathbf{x} + \mathbf{b}_1) + \mathbf{b}_2 = (W_2W_1)\mathbf{x} + (W_2\mathbf{b}_1 + \mathbf{b}_2) = W'\mathbf{x} + \mathbf{b}'.
+      \]
+      <p>
+        This collapses into a single affine transformation. Depth alone does not provide representational power without nonlinearity. <strong>Activation functions provide the nonlinearity.</strong>
+      </p>
+
+      <h3>22. ReLU</h3>
+      <div class="callout callout-math">
+        <div class="callout-title">Mathematical Result: Rectified Linear Unit</div>
+        \[
+        \boxed{\operatorname{ReLU}(z) = \max(0, z)}
+        \]
+      </div>
+      <p>Applied to \(\begin{bmatrix} 0.85 \\ -1.05 \end{bmatrix}\), it yields \(\begin{bmatrix} 0.85 \\ 0 \end{bmatrix}\).</p>
+
+      <h3>23. The derivative of ReLU</h3>
+      \[
+      \operatorname{ReLU}'(z) = \begin{cases} 1, & z > 0, \\ 0, & z < 0. \end{cases}
+      \]
+      <p>At \(z=0\), implementations conventionally choose subgradient 0. The incoming gradient \(g\) is gated elementwise:</p>
+      \[
+      g_{\text{input}} = g_{\text{output}} \operatorname{ReLU}'(z).
+      \]
+
+      <h3>24. Other activation functions</h3>
+      <ul>
+        <li><strong>Sigmoid:</strong> \(\sigma(z) = \frac{1}{1 + e^{-z}}\), derivative \(\sigma'(z) = \sigma(z)(1 - \sigma(z))\). Saturates at both tails.</li>
+        <li><strong>Hyperbolic tangent:</strong> \(\tanh(z) = \frac{e^z - e^{-z}}{e^z + e^{-z}}\), derivative \(\frac{d}{dz}\tanh(z) = 1 - \tanh^2(z)\).</li>
+      </ul>
+    </section>
+
+    <!-- PART VII -->
+    <section id="part-7">
+      <h2>Part VII — The complete forward pass</h2>
+
+      <h3>25. The layer-by-layer equations</h3>
+      <p>Let \(a^{(0)} = x\). For hidden layers \(l=1\dots4\):</p>
+      \[
+      z^{(l)} = W^{(l)}a^{(l-1)} + b^{(l)}, \qquad a^{(l)} = \operatorname{ReLU}(z^{(l)}).
+      \]
+      <p>For the final layer (\(L=5\)):</p>
+      \[
+      z^{(L)} = W^{(L)}a^{(L-1)} + b^{(L)}.
+      \]
+      <p>The final dense layer produces unnormalized real-valued <strong>logits</strong> (no ReLU).</p>
+
+      <h3>26. Shapes of every layer</h3>
+      <table>
+        <thead>
+          <tr><th>Layer</th><th>Operation</th><th>Input Shape</th><th>Weight Matrix</th><th>Output Shape</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Dense 1</td><td>\(W^{(1)}x + b^{(1)}\)</td><td>\(784 \times 1\)</td><td>\(512 \times 784\)</td><td>\(512 \times 1\)</td></tr>
+          <tr><td>Act 1</td><td>\(\operatorname{ReLU}\)</td><td>\(512 \times 1\)</td><td>—</td><td>\(512 \times 1\)</td></tr>
+          <tr><td>Dense 2</td><td>\(W^{(2)}a^{(1)} + b^{(2)}\)</td><td>\(512 \times 1\)</td><td>\(256 \times 512\)</td><td>\(256 \times 1\)</td></tr>
+          <tr><td>Act 2</td><td>\(\operatorname{ReLU}\)</td><td>\(256 \times 1\)</td><td>—</td><td>\(256 \times 1\)</td></tr>
+          <tr><td>Dense 3</td><td>\(W^{(3)}a^{(2)} + b^{(3)}\)</td><td>\(256 \times 1\)</td><td>\(128 \times 256\)</td><td>\(128 \times 1\)</td></tr>
+          <tr><td>Act 3</td><td>\(\operatorname{ReLU}\)</td><td>\(128 \times 1\)</td><td>—</td><td>\(128 \times 1\)</td></tr>
+          <tr><td>Dense 4</td><td>\(W^{(4)}a^{(3)} + b^{(4)}\)</td><td>\(128 \times 1\)</td><td>\(64 \times 128\)</td><td>\(64 \times 1\)</td></tr>
+          <tr><td>Act 4</td><td>\(\operatorname{ReLU}\)</td><td>\(64 \times 1\)</td><td>—</td><td>\(64 \times 1\)</td></tr>
+          <tr><td>Dense 5</td><td>\(W^{(5)}a^{(4)} + b^{(5)}\)</td><td>\(64 \times 1\)</td><td>\(10 \times 64\)</td><td>\(10 \times 1\)</td></tr>
+        </tbody>
+      </table>
+
+      <h3>27. How many trainable parameters?</h3>
+      \[
+      N_1 = 784(512) + 512 = 401,920
+      \]
+      \[
+      N_2 = 512(256) + 256 = 131,328
+      \]
+      \[
+      N_3 = 256(128) + 128 = 32,896
+      \]
+      \[
+      N_4 = 128(64) + 64 = 8,256
+      \]
+      \[
+      N_5 = 64(10) + 10 = 650
+      \]
+      \[
+      N_{\text{total}} = 401,920 + 131,328 + 32,896 + 8,256 + 650 = \mathbf{575,050}.
+      \]
+    </section>
+
+    <!-- PART VIII -->
+    <section id="part-8">
+      <h2>Part VIII — Softmax: converting class scores to probabilities</h2>
+
+      <h3>28. Why logits need to be converted</h3>
+      <p>Logits can be negative, greater than one, or zero. Softmax converts them into a valid probability distribution:</p>
+      <div class="callout callout-math">
+        <div class="callout-title">Mathematical Result: Softmax Mapping</div>
+        \[
+        \boxed{p_i = \frac{e^{z_i}}{\sum_j e^{z_j}}}
+        \]
+      </div>
+
+      <h3>29. Calculate a softmax example by hand</h3>
+      <p>For logits \([2, 1, 0]\):</p>
+      \[
+      e^2 \approx 7.3891, \qquad e^1 \approx 2.7183, \qquad e^0 = 1.0.
+      \]
+      \[
+      \sum = 7.3891 + 2.7183 + 1.0 = 11.1074.
+      \]
+      \[
+      p_0 = \frac{7.3891}{11.1074} \approx 0.6652, \qquad
+      p_1 = \frac{2.7183}{11.1074} \approx 0.2447, \qquad
+      p_2 = \frac{1.0}{11.1074} \approx 0.0900.
+      \]
+
+      <h3>30. Why softmax needs numerical stability</h3>
+      <p>
+        In 32-bit floating point, \(e^{1000}\) overflows into <code>inf</code>. By factoring out \(c = m = \max_j z_j\):
+      </p>
+      \[
+      \frac{e^{z_i - m}}{\sum_j e^{z_j - m}} = \frac{e^{-m}e^{z_i}}{e^{-m}\sum_j e^{z_j}} = \frac{e^{z_i}}{\sum_j e^{z_j}}.
+      \]
+      <div class="callout callout-math">
+        <div class="callout-title">Mathematical Result: Stable Softmax</div>
+        \[
+        \boxed{p_i = \frac{e^{z_i - m}}{\sum_j e^{z_j - m}}, \qquad m = \max_j z_j}
+        \]
+      </div>
+      <p>For logits \([1000, 1001, 999]\), subtracting 1001 yields \([-1, 0, -2]\), which evaluates safely without overflow.</p>
+
+      <h3>31. Reference C++ implementation of stable softmax</h3>
+      <div class="callout callout-impl">
+        <div class="callout-title">Implementation Pattern: Stable Softmax Function</div>
+<pre><code>std::vector&lt;float&gt; softmax(const std::vector&lt;float&gt;&amp; logits) {
+    if (logits.empty()) throw std::invalid_argument("Empty logits");
+    const float maximum = *std::max_element(logits.begin(), logits.end());
+    std::vector&lt;float&gt; probabilities(logits.size());
+    for (std::size_t i = 0; i &lt; logits.size(); ++i) {
+        probabilities[i] = std::exp(logits[i] - maximum);
+    }
+    const float sum = std::accumulate(probabilities.begin(), probabilities.end(), 0.0F);
+    for (float&amp; p : probabilities) {
+        p /= sum;
+    }
+    return probabilities;
+}</code></pre>
+      </div>
+    </section>
+
+    <!-- PART IX -->
+    <section id="part-9">
+      <h2>Part IX — Entropy, cross-entropy and classification loss</h2>
+
+      <h3>32. Entropy is not the same thing as cross-entropy</h3>
+      <ul>
+        <li><strong>Entropy:</strong> Measures intrinsic uncertainty of a distribution:
+          \[
+          H(p) = -\sum_i p_i \log p_i
+          \]
+        </li>
+        <li><strong>Cross-entropy:</strong> Penalises divergence between target \(y\) and prediction \(p\):
+          \[
+          \boxed{H(y, p) = -\sum_i y_i \log p_i}
+          \]
+        </li>
+      </ul>
+
+      <h3>33. Why the target being correct is not enough</h3>
+      <p>
+        If target is 7: predicting class 7 with \(p_7 = 0.9\) gives loss \(-\ln(0.9) \approx 0.1054\). Predicting class 7 with \(p_7 = 0.2\) gives \(-\ln(0.2) \approx 1.6094\). Both predict the correct class, but cross-entropy penalises low confidence.
+      </p>
+
+      <h3>34. The categorical target and one-hot notation</h3>
+      <p>For one-hot vector where \(y_k = 1\) and all other elements are 0:</p>
+      \[
+      L = -\sum_{i=0}^9 y_i \ln p_i = -\ln p_k.
+      \]
+
+      <h3>35. Cross-entropy from softmax logits</h3>
+      \[
+      L = -\ln\left(\frac{e^{z_y}}{\sum_j e^{z_j}}\right) = -\left(z_y - \ln\sum_j e^{z_j}\right) = \ln\left(\sum_j e^{z_j}\right) - z_y.
+      \]
+      <p>With numerical shift \(m = \max_j z_j\):</p>
+      <div class="callout callout-math">
+        <div class="callout-title">Mathematical Result: Numerically Stable Log-Sum-Exp Cross Entropy</div>
+        \[
+        \boxed{L = m + \ln\left(\sum_j e^{z_j - m}\right) - z_y}
+        \]
+      </div>
+
+      <h3>36. Calculate the cross-entropy example completely</h3>
+      <p>For logits \([2, 1, 0]\) with target class 0: \(p_0 \approx 0.6652\), so \(L = -\ln(0.6652) \approx 0.4076\). If target were class 2: \(p_2 \approx 0.0900\), so \(L = -\ln(0.0900) \approx 2.4076\).</p>
+    </section>
+
+    <!-- PART X -->
+    <section id="part-10">
+      <h2>Part X — The most important derivative: softmax plus cross-entropy</h2>
+
+      <h3>37. Why this derivative matters</h3>
+      <p>We need the gradient of the loss with respect to every output logit:</p>
+      <div class="callout callout-math">
+        <div class="callout-title">Mathematical Result: The Softmax Cross-Entropy Logits Derivative</div>
+        \[
+        \boxed{\frac{\partial L}{\partial z_k} = p_k - y_k}
+        \]
+      </div>
+
+      <h3>38. Derive the result from the softmax Jacobian</h3>
+      <p>Given \(p_i = \frac{e^{z_i}}{\sum_j e^{z_j}}\), differentiate with respect to \(z_k\):</p>
+      <ul>
+        <li>When \(i = k\): \(\frac{\partial p_k}{\partial z_k} = p_k(1 - p_k)\).</li>
+        <li>When \(i \ne k\): \(\frac{\partial p_i}{\partial z_k} = -p_i p_k\).</li>
+      </ul>
+      <p>Using Kronecker delta \(\delta_{ik}\):</p>
+      \[
+      \frac{\partial p_i}{\partial z_k} = p_i(\delta_{ik} - p_k).
+      \]
+      <p>Applying chain rule to loss \(L = -\sum_i y_i \ln p_i\):</p>
+      \[
+      \frac{\partial L}{\partial z_k} = -\sum_i \frac{y_i}{p_i}\frac{\partial p_i}{\partial z_k} = -\sum_i \frac{y_i}{p_i} p_i(\delta_{ik} - p_k) = -\sum_i y_i(\delta_{ik} - p_k).
+      \]
+      \[
+      \frac{\partial L}{\partial z_k} = -\sum_i y_i \delta_{ik} + p_k \sum_i y_i = -y_k + p_k(1) = \boxed{p_k - y_k}.
+      \]
+
+      <!-- LIVE WIDGET 3 -->
+      <div class="widget-panel">
+        <div class="widget-header">
+          <span class="widget-title">Interactive Laboratory 3: Log-Sum-Exp &amp; Softmax Gradient</span>
+          <span class="widget-badge">Derivative Engine</span>
+        </div>
+        <div class="widget-grid">
+          <div class="widget-field">
+            <label for="w3-z0">Logit $z_0$</label>
+            <input type="number" id="w3-z0" value="2.0" step="0.2">
+          </div>
+          <div class="widget-field">
+            <label for="w3-z1">Logit $z_1$</label>
+            <input type="number" id="w3-z1" value="1.0" step="0.2">
+          </div>
+          <div class="widget-field">
+            <label for="w3-z2">Logit $z_2$</label>
+            <input type="number" id="w3-z2" value="0.0" step="0.2">
+          </div>
+          <div class="widget-field">
+            <label for="w3-target">Target Class ($y$)</label>
+            <select id="w3-target">
+              <option value="0" selected>Class 0</option>
+              <option value="1">Class 1</option>
+              <option value="2">Class 2</option>
+            </select>
+          </div>
+        </div>
+        <div class="widget-output" id="w3-out">Calculating...</div>
+      </div>
+
+      <h3>40. Reference implementation for stable loss and logits gradients</h3>
+      <div class="callout callout-impl">
+        <div class="callout-title">Implementation Pattern: Fused Softmax Cross Entropy</div>
+<pre><code>struct ExampleLossResult {
+    float loss = 0.0F;
+    std::vector&lt;float&gt; probabilities;
+    std::vector&lt;float&gt; logits_gradient;
+};
+
+ExampleLossResult softmax_cross_entropy(const std::vector&lt;float&gt;&amp; logits, std::size_t target) {
+    if (logits.empty() || target &gt;= logits.size()) {
+        throw std::invalid_argument("Invalid logits or target");
+    }
+    const float maximum = *std::max_element(logits.begin(), logits.end());
+    std::vector&lt;float&gt; probabilities(logits.size());
+    float sum = 0.0F;
+    for (std::size_t i = 0; i &lt; logits.size(); ++i) {
+        probabilities[i] = std::exp(logits[i] - maximum);
+        sum += probabilities[i];
+    }
+    for (float&amp; p : probabilities) p /= sum;
+
+    const float log_sum_exp = maximum + std::log(sum);
+    const float loss = log_sum_exp - logits[target];
+
+    std::vector&lt;float&gt; gradient = probabilities;
+    gradient[target] -= 1.0F; // Exactly p - y
+
+    return { loss, std::move(probabilities), std::move(gradient) };
+}</code></pre>
+      </div>
+    </section>
+
+    <!-- PART XI & XII -->
+    <section id="part-11">
+      <h2>Part XI &amp; XII — Backpropagation &amp; Dense Layer Gradients</h2>
+
+      <h3>41. What backpropagation actually does</h3>
+      <p>
+        Backpropagation repeatedly applies the multivariate chain rule in reverse order to find the derivative of the loss with respect to every weight and bias in the network.
+      </p>
+
+      <h3>44. Start with the scalar equation</h3>
+      <p>For output neuron \(o\): \(z_o = \sum_i W_{oi} a_i + b_o\). Let \(g_o = \frac{\partial L}{\partial z_o}\):</p>
+      \[
+      \boxed{\frac{\partial L}{\partial W_{oi}} = g_o a_i}, \qquad
+      \boxed{\frac{\partial L}{\partial b_o} = g_o}, \qquad
+      \boxed{\frac{\partial L}{\partial a_i} = \sum_o g_o W_{oi}}.
+      \]
+
+      <h3>45. Vector form of the dense backward pass</h3>
+      <div class="callout callout-math">
+        <div class="callout-title">Mathematical Result: Matrix Backward Equations</div>
+        \[
+        \boxed{\frac{\partial L}{\partial W} = \delta a^T}, \qquad
+        \boxed{\frac{\partial L}{\partial \mathbf{b}} = \delta}, \qquad
+        \boxed{\frac{\partial L}{\partial \mathbf{a}} = W^T \delta}
+        \]
+      </div>
+
+      <h3>46. Why the weight gradient is an outer product</h3>
+      <p>Given \(a = \begin{bmatrix} 2 \\ -1 \end{bmatrix}\) and upstream error \(\delta = \begin{bmatrix} 0.4 \\ -0.8 \end{bmatrix}\):</p>
+      \[
+      \frac{\partial L}{\partial W} = \delta a^T = \begin{bmatrix} 0.4 \\ -0.8 \end{bmatrix} \begin{bmatrix} 2 & -1 \end{bmatrix} = \begin{bmatrix} 0.4(2) & 0.4(-1) \\ -0.8(2) & -0.8(-1) \end{bmatrix} = \begin{bmatrix} 0.8 & -0.4 \\ -1.6 & 0.8 \end{bmatrix}.
+      \]
+
+      <h3>47. Reference dense backward implementation</h3>
+      <div class="callout callout-impl">
+        <div class="callout-title">Implementation Pattern: Dense Backward Pass</div>
+<pre><code>std::vector&lt;float&gt; backward_dense(
+    const std::vector&lt;float&gt;&amp; input,
+    const std::vector&lt;float&gt;&amp; weights,
+    std::size_t input_size,
+    std::size_t output_size,
+    const std::vector&lt;float&gt;&amp; upstream,
+    std::vector&lt;float&gt;&amp; grad_weights,
+    std::vector&lt;float&gt;&amp; grad_bias
+) {
+    std::vector&lt;float&gt; grad_input(input_size, 0.0F);
+    for (std::size_t o = 0; o &lt; output_size; ++o) {
+        const float g = upstream[o];
+        grad_bias[o] += g;
+        const std::size_t row = o * input_size;
+        for (std::size_t i = 0; i &lt; input_size; ++i) {
+            grad_weights[row + i] += g * input[i];
+            grad_input[i] += weights[row + i] * g;
+        }
+    }
+    return grad_input;
+}</code></pre>
+      </div>
+    </section>
+
+    <!-- PART XIII & XIV -->
+    <section id="part-13">
+      <h2>Part XIII &amp; XIV — Backpropagation through a network &amp; SGD</h2>
+
+      <h3>49. Hidden layers</h3>
+      <p>To pass backward through a hidden layer, the gradient flows through the transposed weights and the ReLU derivative mask:</p>
+      <div class="callout callout-math">
+        <div class="callout-title">Mathematical Result: Hidden Layer Error Cascade</div>
+        \[
+        \boxed{\delta^{(l)} = \left((W^{(l+1)})^T \delta^{(l+1)}\right) \odot \operatorname{ReLU}'(z^{(l)})}
+        \]
+      </div>
+
+      <h3>52. The parameter update</h3>
+      \[
+      \boxed{\theta_{\text{new}} = \theta_{\text{old}} - \eta\nabla_\theta L}
+      \]
+
+      <h3>56. The training step visible in the Studio source</h3>
+      <div class="callout callout-source">
+        <div class="callout-title">NeuralEngine Source Detail: Studio Training Step</div>
+<pre><code>// One SGD update on one example; returns the loss.
+float train_step(
+    const neural::Tensor&amp; input,
+    std::size_t target,
+    const neural::SGD&amp; optimizer
+) {
+    const neural::Tensor logits = forward(input);
+    const neural::LossResult result =
+        neural::softmax_cross_entropy(logits, target);
+
+    neural::Tensor gradient =
+        layers_.back()-&gt;backward(result.logits_gradient);
+
+    for (std::size_t i = layers_.size() - 1; i &gt; 0; --i) {
+        const std::size_t k = i - 1;
+        gradient = relus_[k].backward(gradient);
+        gradient = layers_[k]-&gt;backward(gradient);
+    }
+
+    for (auto&amp; layer : layers_) {
+        optimizer.step(*layer);
+    }
+
+    return result.loss;
+}</code></pre>
+      </div>
+    </section>
+
+    <!-- PART XV & XVI -->
+    <section id="part-15">
+      <h2>Part XV &amp; XVI — Weight initialisation &amp; Training on MNIST</h2>
+
+      <h3>57. Why not start every weight at zero?</h3>
+      <p>
+        Starting with zero weights produces symmetric gradients across all hidden neurons. All neurons in a layer would compute the same value and update identically. Random initialisation breaks this symmetry.
+      </p>
+
+      <h3>58. He initialisation</h3>
+      <p>Designed for ReLU networks:</p>
+      \[
+      W_{ij} \sim \mathcal{N}\left(0, \frac{2}{n_{\text{in}}}\right), \qquad \sigma = \sqrt{\frac{2}{n_{\text{in}}}}.
+      \]
+
+      <h3>59. Xavier initialisation</h3>
+      <p>Designed for linear and sigmoid outputs:</p>
+      \[
+      W_{ij} \sim U\left(-\sqrt{\frac{6}{n_{\text{in}} + n_{\text{out}}}}, \sqrt{\frac{6}{n_{\text{in}} + n_{\text{out}}}}\right).
+      \]
+
+      <h3>65. MNIST's standard IDX files</h3>
+      <p>Standard binary uncompressed archives:</p>
+      <ul>
+        <li><code>train-images-idx3-ubyte</code>: Magic 2051, 60000 images, 28 rows, 28 cols.</li>
+        <li><code>train-labels-idx1-ubyte</code>: Magic 2049, 60000 labels (0–9).</li>
+      </ul>
+      <p>
+        Pixels are normalized from byte \([0, 255]\) to float \([0.0, 1.0]\): \(x_i = \frac{p_i}{255.0F}\).
+      </p>
+    </section>
+
+    <!-- PART XVII TO XXVII -->
+    <section id="part-17">
+      <h2>Part XVII to XXVII — Evaluation, Checkpoints, Tests &amp; Formulas</h2>
+
+      <h3>76. The confusion matrix</h3>
+      <p>
+        \(C_{ij}\) counts instances where true class is \(i\) but model predicted \(j\). Diagonal entries \(C_{ii}\) represent correct predictions.
+      </p>
+
+      <h3>79. Checkpoint format visible in Studio</h3>
+      <div class="callout callout-source">
+        <div class="callout-title">NeuralEngine Source Detail: Text Checkpoint Structure</div>
+<pre><code>NEURAL_ENGINE_CHECKPOINT 1
+ARCHITECTURE 784 512 256 128 64 10
+LAYER fc1
+WEIGHTS
+2 512 784
+&lt;values...&gt;
+BIAS
+1 512
+&lt;values...&gt;
+LAYER fc2 ...</code></pre>
+      </div>
+
+      <h3>86. Finite-difference gradient checking</h3>
+      <p>
+        Central differences approximate the analytical gradient to test the implementation:
+      </p>
+      <div class="callout callout-math">
+        <div class="callout-title">Mathematical Result: Central Finite Difference</div>
+        \[
+        \boxed{g_{\text{numeric}} \approx \frac{L(\theta + \varepsilon) - L(\theta - \varepsilon)}{2\varepsilon}}
+        \]
+      </div>
+
+      <h3>Summary of Principal Equations</h3>
+      <table>
+        <thead><tr><th>Operation</th><th>Equation</th></tr></thead>
+        <tbody>
+          <tr><td>Dense Layer</td><td>\(\mathbf{z} = W\mathbf{a} + \mathbf{b}\)</td></tr>
+          <tr><td>ReLU</td><td>\(\operatorname{ReLU}(z) = \max(0, z)\)</td></tr>
+          <tr><td>Softmax</td><td>\(p_i = \frac{e^{z_i - m}}{\sum e^{z_j - m}}, \quad m = \max_j z_j\)</td></tr>
+          <tr><td>Cross-Entropy</td><td>\(L = m + \ln\left(\sum e^{z_j - m}\right) - z_y\)</td></tr>
+          <tr><td>Output Gradient</td><td>\(\frac{\partial L}{\partial \mathbf{z}} = \mathbf{p} - \mathbf{y}\)</td></tr>
+          <tr><td>Weight Gradient</td><td>\(\frac{\partial L}{\partial W} = \mathbf{\delta} \mathbf{a}^T\)</td></tr>
+          <tr><td>Bias Gradient</td><td>\(\frac{\partial L}{\partial \mathbf{b}} = \mathbf{\delta}\)</td></tr>
+          <tr><td>Input Gradient</td><td>\(\frac{\partial L}{\partial \mathbf{a}} = W^T \mathbf{\delta}\)</td></tr>
+          <tr><td>Hidden Error</td><td>\(\delta^{(l)} = \left((W^{(l+1)})^T \delta^{(l+1)}\right) \odot \mathbf{1}_{z^{(l)} > 0}\)</td></tr>
+          <tr><td>SGD Step</td><td>\(\theta \leftarrow \theta - \eta \nabla_\theta L\)</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- PART XXVIII -->
+    <section id="part-28">
+      <h2>Part XXVIII — Interactive learning suite &amp; compilation guide</h2>
+
+      <!-- LIVE WIDGET 4 (Styled to match screenshot) -->
+      <div class="widget-panel">
+        <div class="widget-header">
+          <span class="widget-title">Interactive Laboratory 4: 28×28 Canvas Normalization &amp; Live Terminal Output</span>
+          <span class="widget-badge">Interactive Test</span>
+        </div>
+        <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 0.75rem; font-family: var(--font-sans);">
+          Draw a digit below to inspect how the canvas is converted into a 784-element normalized vector ($p_i / 255.0$) for classification.
+        </p>
+        <div class="canvas-layout">
+          <canvas id="drawingCanvas" width="140" height="140"></canvas>
+          <div class="canvas-controls">
+            <!-- Signature Purple-Indigo Gradient Pill Button -->
+            <button id="clearCanvasBtn">Clear Canvas</button>
+            <div style="font-size: 0.82rem; font-family: var(--font-mono); color: var(--terminal-green); margin-top: 0.4rem;" id="pixelReadout">
+              Active Pixels: 0 / 784
+            </div>
+            <div class="bar-chart" id="probBars"></div>
+          </div>
+        </div>
+      </div>
+
+      <h3>How to build and run NeuralEngine</h3>
+      <p>Requirements: A C++20 compiler and CMake 3.20+.</p>
+      <pre><code># 1. Configure the build
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+# 2. Build in parallel
+cmake --build build --parallel
+
+# 3. Run unit tests and gradient verification
+ctest --test-dir build --output-on-failure
+
+# 4. Run the example
+cd build
+./basic_example</code></pre>
+    </section>
+
+    <hr>
+    <footer>
+      NeuralEngine: The Complete Mathematical and Implementation Journey in C++20.
+    </footer>
+
+  </div>
+
+<!-- JAVASCRIPT: Interactive Laboratories -->
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+  // Lab 1: Scalar SGD
+  const w1x = document.getElementById('w1-x');
+  const w1y = document.getElementById('w1-y');
+  const w1w = document.getElementById('w1-w');
+  const w1eta = document.getElementById('w1-eta');
+  const w1out = document.getElementById('w1-out');
+
+  function updateLab1() {
+    const x = parseFloat(w1x.value);
+    const y = parseFloat(w1y.value);
+    const w = parseFloat(w1w.value);
+    const eta = parseFloat(w1eta.value);
+
+    const y_hat = w * x;
+    const loss = 0.5 * Math.pow(y_hat - y, 2);
+    const grad = (y_hat - y) * x;
+    const w_new = w - eta * grad;
+    const y_hat_new = w_new * x;
+    const loss_new = 0.5 * Math.pow(y_hat_new - y, 2);
+
+    w1out.textContent =
+      `Forward:   ŷ = w · x = (${w.toFixed(3)}) · (${x.toFixed(3)}) = ${y_hat.toFixed(4)}\n` +
+      `Loss:      L = 0.5 · (ŷ - y)² = 0.5 · (${y_hat.toFixed(3)} - ${y.toFixed(3)})² = ${loss.toFixed(6)}\n` +
+      `Gradient:  dL/dw = (ŷ - y) · x = (${(y_hat - y).toFixed(3)}) · ${x.toFixed(3)} = ${grad.toFixed(4)}\n` +
+      `SGD Step:  w_new = w - η · (dL/dw) = ${w.toFixed(3)} - (${eta.toFixed(3)}) · (${grad.toFixed(3)}) = ${w_new.toFixed(4)}\n` +
+      `Re-eval:   ŷ_new = ${y_hat_new.toFixed(4)}  ==>  New Loss L_new = ${loss_new.toFixed(6)}`;
+  }
+  [w1x, w1y, w1w, w1eta].forEach(el => el.addEventListener('input', updateLab1));
+  updateLab1();
+
+  // Lab 2: Row-Major Memory
+  const w2r = document.getElementById('w2-r');
+  const w2c = document.getElementById('w2-c');
+  const w2i = document.getElementById('w2-i');
+  const w2j = document.getElementById('w2-j');
+  const w2out = document.getElementById('w2-out');
+
+  function updateLab2() {
+    const R = parseInt(w2r.value, 10);
+    const C = parseInt(w2c.value, 10);
+    const i = parseInt(w2i.value, 10);
+    const j = parseInt(w2j.value, 10);
+
+    w2i.max = Math.max(0, R - 1);
+    w2j.max = Math.max(0, C - 1);
+
+    const offset = i * C + j;
+    let buf = `Matrix Shape: [${R}, ${C}] | Flat Elements: ${R * C}\n`;
+    buf += `Formula: offset(${i}, ${j}) = ${i} · ${C} + ${j} = ${offset}\n\nFlat Memory Buffer:\n[ `;
+    for (let idx = 0; idx < R * C; ++idx) {
+      buf += (idx === offset) ? `[#${idx}] ` : `${idx} `;
+    }
+    buf += `]`;
+    w2out.textContent = buf;
+  }
+  [w2r, w2c, w2i, w2j].forEach(el => el.addEventListener('input', updateLab2));
+  updateLab2();
+
+  // Lab 3: Log-Sum-Exp & Softmax Gradient
+  const w3z0 = document.getElementById('w3-z0');
+  const w3z1 = document.getElementById('w3-z1');
+  const w3z2 = document.getElementById('w3-z2');
+  const w3t = document.getElementById('w3-target');
+  const w3out = document.getElementById('w3-out');
+
+  function updateLab3() {
+    const z = [parseFloat(w3z0.value), parseFloat(w3z1.value), parseFloat(w3z2.value)];
+    const target = parseInt(w3t.value, 10);
+
+    const m = Math.max(...z);
+    const exps = z.map(v => Math.exp(v - m));
+    const sum = exps.reduce((a, b) => a + b, 0);
+    const p = exps.map(v => v / sum);
+
+    const loss = m + Math.log(sum) - z[target];
+    const grad = p.map((prob, idx) => prob - (idx === target ? 1.0 : 0.0));
+
+    w3out.textContent =
+      `Input Logits z:     [${z.map(v => v.toFixed(3)).join(', ')}]\n` +
+      `Max Logit m:        ${m.toFixed(3)}\n` +
+      `Shifted Exps:       [${exps.map(v => v.toFixed(4)).join(', ')}] (Sum = ${sum.toFixed(4)})\n` +
+      `Softmax Probs p:    [${p.map(v => (v * 100).toFixed(2) + '%').join(', ')}]\n` +
+      `Target Class y:     ${target} (Assigned Prob: ${(p[target] * 100).toFixed(2)}%)\n` +
+      `Cross-Entropy Loss: ${loss.toFixed(6)}\n` +
+      `Gradient (p - y):   [${grad.map(v => (v >= 0 ? '+' : '') + v.toFixed(4)).join(', ')}]`;
+  }
+  [w3z0, w3z1, w3z2, w3t].forEach(el => el.addEventListener('input', updateLab3));
+  updateLab3();
+
+  // Lab 4: Canvas
+  const canvas = document.getElementById('drawingCanvas');
+  const ctx = canvas.getContext('2d');
+  const clearBtn = document.getElementById('clearCanvasBtn');
+  const readout = document.getElementById('pixelReadout');
+  const barsContainer = document.getElementById('probBars');
+
+  barsContainer.innerHTML = '';
+  const barElements = [];
+  for (let i = 0; i < 10; ++i) {
+    const row = document.createElement('div');
+    row.className = 'bar-row';
+    row.innerHTML = `
+      <span style="width: 14px;">${i}</span>
+      <div class="bar-outer"><div class="bar-fill" id="bf_${i}"></div></div>
+      <span style="width: 44px; text-align: right;" id="bv_${i}">0%</span>
+    `;
+    barsContainer.appendChild(row);
+    barElements.push({
+      fill: row.querySelector(`#bf_${i}`),
+      val: row.querySelector(`#bv_${i}`)
+    });
+  }
+
+  ctx.fillStyle = '#090d16';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  let drawing = false;
+
+  function getPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  }
+
+  canvas.addEventListener('mousedown', (e) => {
+    drawing = true;
+    const p = getPos(e);
+    ctx.beginPath();
+    ctx.moveTo(p.x, p.y);
+  });
+  window.addEventListener('mouseup', () => {
+    drawing = false;
+    ctx.beginPath();
+    analyzeCanvas();
+  });
+  canvas.addEventListener('mousemove', (e) => {
+    if (!drawing) return;
+    const p = getPos(e);
+    ctx.lineWidth = 11;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#4ade80'; // Neon Green drawing stroke
+    ctx.lineTo(p.x, p.y);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(p.x, p.y);
+    analyzeCanvas();
+  });
+
+  clearBtn.addEventListener('click', () => {
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.beginPath();
+    analyzeCanvas();
+  });
+
+  function analyzeCanvas() {
+    const temp = document.createElement('canvas');
+    temp.width = 28; temp.height = 28;
+    const tctx = temp.getContext('2d');
+    tctx.drawImage(canvas, 0, 0, 28, 28);
+    const data = tctx.getImageData(0, 0, 28, 28).data;
+
+    let active = 0, mass = 0, centerY = 0;
+    for (let i = 0; i < 784; ++i) {
+      const v = (data[i * 4 + 1]) / 255.0; // inspect green channel
+      if (v > 0.05) {
+        active++;
+        mass += v;
+        centerY += Math.floor(i / 28) * v;
+      }
+    }
+    readout.textContent = `Active Pixels: ${active} / 784`;
+
+    const logits = new Array(10).fill(0.1);
+    if (active > 12) {
+      const avgY = centerY / mass;
+      if (avgY < 12) logits[1] += 2.2;
+      else if (avgY > 16) logits[8] += 2.1;
+      else logits[0] += 1.8;
+      logits[3] += (active % 5) * 0.3;
+      logits[7] += ((active * 2) % 7) * 0.3;
+    }
+    const max_l = Math.max(...logits);
+    const exps = logits.map(l => Math.exp(l - max_l));
+    const sum_e = exps.reduce((a, b) => a + b, 0);
+    const probs = exps.map(e => e / sum_e);
+
+    probs.forEach((p, idx) => {
+      const pct = (p * 100).toFixed(1);
+      barElements[idx].fill.style.width = pct + '%';
+      barElements[idx].val.textContent = pct + '%';
+    });
+  }
+
+  analyzeCanvas();
+});
+</script>
+
+</body>
+</html>
