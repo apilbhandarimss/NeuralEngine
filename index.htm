@@ -565,6 +565,10 @@
         <li><a href="#part-26">Part XXVI — Numerical and software engineering considerations</a></li>
         <li><a href="#part-27">Part XXVII — A compact formula reference</a></li>
         <li><a href="#part-28">Part XXVIII — Interactive learning suite &amp; compilation guide</a></li>
+        <li><a href="#part-29">Part XXIX — Batch Training and Batch Normalisation</a></li>
+<li><a href="#part-30">Part XXX — BatchNorm: Deriving the Backward Pass</a></li>
+<li><a href="#part-31">Part XXXI — Gradient Scaling and Mean Batch Loss</a></li>
+<li><a href="#part-32">Part XXXII — Training Stability, Learning Rates and BatchNorm</a></li>
       </ol>
     </div>
 
@@ -1643,6 +1647,764 @@ LAYER fc2 ...</code></pre>
           </div>
         </div>
       </div>
+
+<!-- PART XXIX -->
+<section id="part-29">
+  <h2>Part XXIX — Batch Training and Batch Normalisation</h2>
+
+  <h3>89. From one example to a batch</h3>
+
+  <p>
+    The original training procedure processed one image at a time. For every
+    image, the network performed a forward pass, calculated the loss, propagated
+    gradients backwards, and updated its parameters. This is stochastic
+    gradient descent (SGD) with a batch size of one.
+  </p>
+
+  <p>
+    Batch training processes several examples before updating the parameters.
+    If a batch contains \(B\) examples, the network calculates predictions and
+    losses for all \(B\) examples, accumulates their gradient contributions,
+    and performs one optimiser update.
+  </p>
+
+  <div class="callout callout-math">
+    <div class="callout-title">Mathematical Result: Mean Batch Loss</div>
+    \[
+      \boxed{
+      L_{\mathrm{mean}} =
+      \frac{1}{B}\sum_{i=1}^{B}L_i
+      }
+    \]
+    <p>
+      Here, \(L_i\) is the loss for example \(i\). The mean loss gives each
+      example equal weight while keeping the loss scale independent of the
+      number of examples in the batch.
+    </p>
+  </div>
+
+  <p>
+    The mean loss is differentiated with respect to the network's parameters.
+    Its gradient is the average of the individual examples' gradients.
+    Consequently, each example contributes \(1/B\) of its individual
+    gradient to the batch gradient.
+  </p>
+
+  <h3>90. What Batch Normalisation does</h3>
+
+  <p>
+    Batch Normalisation (BatchNorm or BN) normalises activations separately
+    for each feature across the examples in a mini-batch. It then applies
+    learnable scale and shift parameters.
+  </p>
+
+  <p>
+    Consider an input tensor \(X\) of shape \((B,F)\), where \(B\) is the
+    batch size and \(F\) is the number of features. For each feature \(j\),
+    BatchNorm calculates statistics across the batch dimension.
+  </p>
+
+  <p>
+    BatchNorm is not simply a fixed operation that forces every layer's
+    output to have zero mean and unit variance. Its learned parameters
+    \(\gamma\) and \(\beta\) allow the network to choose an appropriate
+    output scale and offset.
+  </p>
+
+  <h3>91. Calculating the batch mean</h3>
+
+  <p>
+    For a particular feature \(j\), let its activation in example \(i\)
+    be \(x_{ij}\). The batch mean for that feature is
+  </p>
+
+  \[
+    \boxed{
+      \mu_j = \frac{1}{B}\sum_{i=1}^{B}x_{ij}
+    }
+  \]
+
+  <p>
+    The mean describes the average activation of the feature across the
+    current batch. Every example contributes to the same feature mean.
+  </p>
+
+  <h3>92. Calculating the batch variance</h3>
+
+  <p>
+    Variance measures the spread of the activations around their mean.
+    BatchNorm uses the population variance of the current batch:
+  </p>
+
+  \[
+    \boxed{
+      \sigma_j^2 =
+      \frac{1}{B}\sum_{i=1}^{B}(x_{ij}-\mu_j)^2
+    }
+  \]
+
+  <p>
+    The divisor is \(B\), rather than \(B-1\). This is the variance convention
+    used in the standard training-time BatchNorm calculation.
+  </p>
+
+  <h3>93. Normalising the activations</h3>
+
+  <p>
+    The mean is subtracted from each activation, and the result is divided
+    by the standard deviation:
+  </p>
+
+  \[
+    \boxed{
+      \hat{x}_{ij} =
+      \frac{x_{ij}-\mu_j}
+      {\sqrt{\sigma_j^2+\epsilon}}
+    }
+  \]
+
+  <p>
+    The small positive constant \(\epsilon\) improves numerical stability
+    and prevents division by zero. Without it, a feature with zero variance
+    would have a zero denominator.
+  </p>
+
+  <p>
+    Normalisation centres the batch activations and scales their spread.
+    With nonzero variance, their normalised values have mean approximately
+    zero and variance approximately one. The exact variance is slightly
+    affected by \(\epsilon\).
+  </p>
+
+  <h3>94. The learnable scale and shift</h3>
+
+  <p>
+    BatchNorm transforms the normalised values using two trainable parameters
+    for each feature:
+  </p>
+
+  \[
+    \boxed{y_{ij}=\gamma_j\hat{x}_{ij}+\beta_j}
+  \]
+
+  <ul>
+    <li><strong>\(\gamma_j\)</strong> is the learned scale.</li>
+    <li><strong>\(\beta_j\)</strong> is the learned shift.</li>
+  </ul>
+
+  <p>
+    The usual initial values are \(\gamma_j=1\) and \(\beta_j=0\), so the
+    initial transformation preserves the normalised values. Training can
+    change both parameters.
+  </p>
+
+  <p>
+    BatchNorm therefore performs four main operations during its training
+    forward pass: calculate the mean, calculate the variance, normalise the
+    activations, and apply the learned scale and shift.
+  </p>
+
+  <h3>95. A numerical example</h3>
+
+  <p>
+    Suppose one feature has four activations:
+    \(X=[2,4,6,8]\). Its mean is \(5\), and its population variance is \(5\).
+    If \(\epsilon\) is ignored for this illustrative calculation, its
+    normalised values are approximately:
+  </p>
+
+  \[
+    \hat{X} =
+    [-1.342,-0.447,0.447,1.342]
+  \]
+
+  <p>
+    If \(\gamma=1\) and \(\beta=0\), these are also the outputs. If
+    \(\gamma=2\) and \(\beta=1\), the outputs become approximately
+    \([-1.683,0.106,1.894,3.683]\).
+  </p>
+
+  <p>
+    The second example demonstrates that BatchNorm's final output is not
+    required to retain zero mean and unit variance. The learned scale and
+    shift can change both.
+  </p>
+</section>
+
+<!-- PART XXX -->
+<section id="part-30">
+  <h2>Part XXX — BatchNorm: Deriving the Backward Pass</h2>
+
+  <h3>96. What enters and leaves backward()</h3>
+
+  <p>
+    Backpropagation supplies each operation with the gradient of the loss
+    with respect to that operation's output. The operation uses its local
+    derivative to calculate the gradient with respect to its input.
+  </p>
+
+  <p>
+    For BatchNorm, define the incoming gradient for feature \(j\) and
+    example \(i\) as
+  </p>
+
+  \[
+    g_{ij} = \frac{\partial L}{\partial y_{ij}}
+  \]
+
+  <p>
+    BatchNorm must calculate the gradients of its learned parameters
+    \(\gamma_j\) and \(\beta_j\), as well as the gradient with respect
+    to each input activation \(x_{ij}\).
+  </p>
+
+  <h3>97. Deriving the shift gradient</h3>
+
+  <p>
+    Since \(y_{ij}=\gamma_j\hat{x}_{ij}+\beta_j\), differentiating with
+    respect to the shift gives
+  </p>
+
+  \[
+    \frac{\partial y_{ij}}{\partial\beta_j}=1
+  \]
+
+  <p>
+    Applying the chain rule and summing the contributions from the batch:
+  </p>
+
+  \[
+    \boxed{
+      \frac{\partial L}{\partial\beta_j}
+      =\sum_{i=1}^{B}g_{ij}
+    }
+  \]
+
+  <p>
+    Every example contributes its incoming gradient because changing
+    \(\beta_j\) changes every output for that feature by the same amount.
+  </p>
+
+  <h3>98. Deriving the scale gradient</h3>
+
+  <p>
+    Differentiating the output with respect to the scale parameter gives
+  </p>
+
+  \[
+    \frac{\partial y_{ij}}{\partial\gamma_j}=\hat{x}_{ij}
+  \]
+
+  <p>
+    Applying the chain rule:
+  </p>
+
+  \[
+    \boxed{
+      \frac{\partial L}{\partial\gamma_j}
+      =\sum_{i=1}^{B}g_{ij}\hat{x}_{ij}
+    }
+  \]
+
+  <p>
+    Each contribution is weighted by the corresponding normalised activation.
+    Positive and negative normalised values can therefore contribute
+    differently to the scale gradient.
+  </p>
+
+  <h3>99. Why the input gradient is more complicated</h3>
+
+  <p>
+    A common mistake is to assume that the output for example \(i\) depends
+    only on input \(x_i\). It also depends on the batch mean and variance,
+    and those statistics depend on every input in the batch.
+  </p>
+
+  <p>
+    Changing \(x_i\) affects its own numerator, the batch mean, and the
+    batch variance. The changed statistics can also affect the normalised
+    outputs of other examples. Backpropagation must account for all these
+    paths through the computation graph.
+  </p>
+
+  <h3>100. Start with the normalisation equation</h3>
+
+  <p>
+    For one feature, temporarily omit its feature index and write:
+  </p>
+
+  \[
+    \hat{x}_i =
+    (x_i-\mu)(\sigma^2+\epsilon)^{-1/2}
+  \]
+
+  <p>
+    Define the inverse standard deviation as
+  </p>
+
+  \[
+    r=(\sigma^2+\epsilon)^{-1/2}
+  \]
+
+  <p>
+    Then \(\hat{x}_i=(x_i-\mu)r\). The output equation is
+    \(y_i=\gamma\hat{x}_i+\beta\), so the gradient arriving at the
+    normalised value is
+  </p>
+
+  \[
+    q_i=\frac{\partial L}{\partial\hat{x}_i}
+    =\gamma g_i
+  \]
+
+  <h3>101. The variance path</h3>
+
+  <p>
+    The inverse standard deviation depends on the variance. Its derivative is
+  </p>
+
+  \[
+    \frac{\partial r}{\partial\sigma^2}
+    =-\frac{1}{2}(\sigma^2+\epsilon)^{-3/2}
+  \]
+
+  <p>
+    Since every normalised value uses the same variance, the gradient with
+    respect to the variance receives contributions from every example:
+  </p>
+
+  \[
+    \frac{\partial L}{\partial\sigma^2}
+    =-\frac{1}{2}(\sigma^2+\epsilon)^{-3/2}
+      \sum_{k=1}^{B}q_k(x_k-\mu)
+  \]
+
+  <p>
+    This term represents the effect of changing the batch's spread on
+    all normalised outputs.
+  </p>
+
+  <h3>102. The mean path</h3>
+
+  <p>
+    The batch mean also depends on every input:
+  </p>
+
+  \[
+    \frac{\partial\mu}{\partial x_i}=\frac{1}{B}
+  \]
+
+  <p>
+    A change in one input shifts the mean, which affects every normalised
+    activation. The derivative must therefore combine the direct path from
+    \(x_i\), the mean path, and the variance path.
+  </p>
+
+  <h3>103. The complete input-gradient equation</h3>
+
+  <p>
+    Applying the chain rule to these paths and simplifying gives the standard
+    BatchNorm input gradient. For one feature, with
+    \(r=(\sigma^2+\epsilon)^{-1/2}\):
+  </p>
+
+  <div class="callout callout-math">
+    <div class="callout-title">Mathematical Result: BatchNorm Input Gradient</div>
+    \[
+      \boxed{
+      \frac{\partial L}{\partial x_i}
+      =\frac{\gamma r}{B}
+      \left[
+        Bg_i-\sum_{k=1}^{B}g_k
+        -\hat{x}_i\sum_{k=1}^{B}g_k\hat{x}_k
+      \right]
+      }
+    \]
+    <p>
+      All sums are over the examples in the batch for the same feature.
+      The expression accounts for the direct input path and the indirect
+      effects through the batch mean and variance.
+    </p>
+  </div>
+
+  <h3>104. Interpreting the three terms</h3>
+
+  <ul>
+    <li>
+      <strong>\(Bg_i\):</strong> the direct contribution of the current
+      example's incoming gradient.
+    </li>
+    <li>
+      <strong>\(-\sum_k g_k\):</strong> the correction caused by the
+      shared batch mean.
+    </li>
+    <li>
+      <strong>\(-\hat{x}_i\sum_k g_k\hat{x}_k\):</strong> the correction
+      caused by the shared batch variance.
+    </li>
+  </ul>
+
+  <p>
+    The factor \(\gamma r/B\) scales the combined result. In particular,
+    the division by \(B\) is part of the derivative of BatchNorm; it is
+    not an instruction to average all gradients a second time.
+  </p>
+
+  <h3>105. Mapping the derivation to NeuralEngine</h3>
+
+  <p>
+    In the current implementation, the incoming gradient is
+    <code>output_gradient</code>. For each feature, the implementation
+    calculates two sums:
+  </p>
+
+  <pre><code>sum_gradient += grad;
+sum_gradient_normalized += grad * x_hat;</code></pre>
+
+  <p>
+    These correspond to
+    \(\sum_k g_k\) and \(\sum_k g_k\hat{x}_k\). The input gradient
+    is then calculated using the derived equation:
+  </p>
+
+  <pre><code>input_gradient.at({i, j}) =
+    (gamma_[j] * inverse_std_[j] / n)
+    * (n * grad
+       - sum_gradient
+       - x_hat * sum_gradient_normalized);</code></pre>
+
+  <p>
+    Here, <code>gamma_[j]</code> is \(\gamma\),
+    <code>inverse_std_[j]</code> is \(r\), and <code>n</code> is the
+    batch size \(B\). The formula should retain its division by
+    <code>n</code>.
+  </p>
+
+  <h3>106. The backward chain through Dense, BatchNorm and ReLU</h3>
+
+  <p>
+    Consider the forward sequence:
+  </p>
+
+  \[
+    z = \operatorname{Dense}(x),\qquad
+    a = \operatorname{BatchNorm}(z),\qquad
+    h = \operatorname{ReLU}(a)
+  \]
+
+  <p>
+    Backpropagation traverses these operations in reverse order:
+  </p>
+
+  <pre><code>gradient = relu4.backward(gradient);
+gradient = bn4.backward(gradient);
+gradient = fc4.backward(gradient);</code></pre>
+
+  <p>
+    ReLU receives the gradient with respect to its output and returns the
+    gradient with respect to its input. BatchNorm receives that result as
+    the gradient with respect to its output and returns the gradient with
+    respect to its input. Dense then receives the gradient with respect
+    to its output.
+  </p>
+
+  <p>
+    The variable name <code>gradient</code> remains the same, but its
+    mathematical meaning changes after every call. Each operation returns
+    the gradient required by the preceding operation.
+  </p>
+
+  <h3>107. Batch size one</h3>
+
+  <p>
+    If \(B=1\), the only activation equals its own batch mean, so
+    \(\mu=x_1\) and \(\sigma^2=0\). Therefore:
+  </p>
+
+  \[
+    \hat{x}_1=\frac{x_1-x_1}{\sqrt{\epsilon}}=0
+  \]
+
+  <p>
+    The output becomes \(y_1=\beta\), independent of the input. Substituting
+    \(B=1\) into the input-gradient equation also gives zero. Thus, training
+    BatchNorm with a batch size of one blocks the gradient to the preceding
+    layer through that BatchNorm operation.
+  </p>
+</section>
+
+<!-- PART XXXI -->
+<section id="part-31">
+  <h2>Part XXXI — Gradient Scaling and Mean Batch Loss</h2>
+
+  <h3>108. Why the loss and gradient must agree</h3>
+
+  <p>
+    For softmax cross-entropy, the gradient of the loss for one example
+    with respect to a logit \(z_j\) is \(p_j-y_j\), where \(p_j\) is
+    the predicted probability and \(y_j\) is the one-hot target.
+  </p>
+
+  \[
+    \frac{\partial L_i}{\partial z_{ij}}=p_{ij}-y_{ij}
+  \]
+
+  <p>
+    For the mean loss across a batch, the derivative is instead:
+  </p>
+
+  \[
+    \boxed{
+      \frac{\partial L_{\mathrm{mean}}}{\partial z_{ij}}
+      =\frac{p_{ij}-y_{ij}}{B}
+    }
+  \]
+
+  <p>
+    Returning the mean scalar loss while returning unscaled gradients
+    would make the loss value and its gradient represent different
+    objectives: the mean loss and the sum of individual losses,
+    respectively.
+  </p>
+
+  <h3>109. Where the averaging occurs</h3>
+
+  <p>
+    NeuralEngine now scales the batch logits gradient by \(1/B\) in
+    <code>softmax_cross_entropy()</code>. This means that the gradient
+    entering backpropagation already corresponds to the mean batch loss.
+  </p>
+
+  <p>
+    Dense accumulates the weight and bias gradient contributions across
+    the batch. Since the incoming gradients already contain the factor
+    \(1/B\), Dense must not divide its accumulated parameter gradients
+    by \(B\) again.
+  </p>
+
+  <p>
+    BatchNorm similarly accumulates the contributions to \(\gamma\) and
+    \(\beta\). It must not perform a separate division by \(B\) when its
+    incoming gradients have already been scaled at the loss.
+  </p>
+
+  <div class="callout callout-source">
+    <div class="callout-title">Implementation Rule</div>
+    <ul>
+      <li>Scale the batch loss gradient once, at the loss function.</li>
+      <li>Accumulate Dense weight and bias gradients without another division.</li>
+      <li>Accumulate BatchNorm scale and shift gradients without another division.</li>
+      <li>Keep BatchNorm's input-gradient formula, including its internal \(1/B\).</li>
+      <li>Do not insert arbitrary gradient averaging into ReLU or other operations.</li>
+    </ul>
+  </div>
+
+  <p>
+    This rule applies to the batch loss overload. The single-example loss
+    has \(B=1\), so its gradient requires no additional scaling.
+  </p>
+
+  <h3>110. Why the BatchNorm input gradient is not averaged again</h3>
+
+  <p>
+    The input-gradient equation already derives how the incoming gradients
+    propagate through the normalisation operation. Its factor \(1/B\)
+    comes from differentiating the batch statistics.
+  </p>
+
+  <p>
+    If the incoming gradient has already been scaled by \(1/B\), the
+    BatchNorm input gradient automatically carries that scaling through
+    the formula. Dividing the returned input gradient by \(B\) again
+    would introduce an unwanted additional factor.
+  </p>
+
+  <p>
+    Gradient scaling must therefore be distinguished from derivative
+    factors that naturally arise when differentiating an operation.
+    Not every occurrence of \(1/B\) in a derivative is an additional
+    loss-averaging step.
+  </p>
+
+  <h3>111. Batch gradients versus parameter updates</h3>
+
+  <p>
+    A batch produces one set of parameter gradients and normally one
+    optimiser update. With per-example SGD, parameters are updated after
+    each example. With batch training, parameters remain fixed while
+    the examples in a batch are processed, and the optimiser updates
+    them after backpropagation.
+  </p>
+
+  <p>
+    The number of updates per epoch consequently changes with batch size.
+    Equal epoch counts do not imply equal numbers of parameter updates
+    or identical optimisation trajectories.
+  </p>
+</section>
+
+<!-- PART XXXII -->
+<section id="part-32">
+  <h2>Part XXXII — Training Stability, Learning Rates and BatchNorm</h2>
+
+  <h3>112. Learning rate and overshooting</h3>
+
+  <p>
+    Gradient descent updates parameters according to
+  </p>
+
+  \[
+    \theta_{\mathrm{new}}
+    =\theta_{\mathrm{old}}-\eta\nabla_\theta L
+  \]
+
+  <p>
+    The learning rate \(\eta\) controls the step size. If the learning rate
+    is too high for the local geometry of the loss surface, updates can
+    overshoot regions of low loss. Repeated overshooting can produce
+    oscillation, unstable loss values, or divergence.
+  </p>
+
+  <p>
+    If calculations overflow or invalid numerical values propagate through
+    the network, the loss can become non-finite, including positive
+    infinity (\(\mathrm{Inf}\)).
+  </p>
+
+  <h3>113. How BatchNorm can affect optimisation</h3>
+
+  <p>
+    As the weights of a preceding layer change, the scale and offset of
+    its activations can change. BatchNorm uses current batch statistics
+    during training to normalise those activations before applying its
+    learned scale and shift.
+  </p>
+
+  <p>
+    This can make the network less sensitive to some changes in activation
+    scale and can improve the conditioning of the optimisation problem.
+    In some settings, it allows the use of a higher learning rate and
+    improves training speed or stability.
+  </p>
+
+  <p>
+    BatchNorm does not directly cap the loss, clip gradients, or guarantee
+    convergence. The learned scale can change, and other parts of the
+    network can still become unstable. Whether BatchNorm helps depends
+    on the architecture, batch size, learning rate, and training procedure.
+  </p>
+
+  <h3>114. Accuracy and cross-entropy measure different things</h3>
+
+  <p>
+    Accuracy measures the fraction of examples whose predicted class is
+    correct. Cross-entropy also penalises how much probability the model
+    assigns to the correct class.
+  </p>
+
+  <p>
+    A model can achieve higher accuracy while having higher mean
+    cross-entropy. For example, it may classify more examples correctly
+    but assign less probability to the correct class on those examples,
+    or make a few highly confident mistakes.
+  </p>
+
+  <p>
+    A higher cross-entropy value alone does not prove that a model has
+    become less confident overall. Confidence and calibration should be
+    assessed using the actual predicted probabilities, alongside accuracy
+    and loss.
+  </p>
+
+  <h3>115. Testing BatchNorm experimentally</h3>
+
+  <p>
+    To evaluate BatchNorm in NeuralEngine, compare training runs while
+    controlling the architecture, initial parameters, data split, and
+    evaluation procedure as far as possible.
+  </p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Experiment</th>
+        <th>BatchNorm</th>
+        <th>Learning rate</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>A</td><td>Off</td><td>Lower</td></tr>
+      <tr><td>B</td><td>Off</td><td>Higher</td></tr>
+      <tr><td>C</td><td>On</td><td>Lower</td></tr>
+      <tr><td>D</td><td>On</td><td>Higher</td></tr>
+    </tbody>
+  </table>
+
+  <p>
+    Record test accuracy, mean test cross-entropy, training-loss curves,
+    and whether any run produces non-finite values. Compare both equal
+    epoch counts and, where relevant, equal optimiser-update counts.
+  </p>
+
+  <p>
+    This experiment can test whether BatchNorm improves stability or
+    permits a higher learning rate in this particular implementation.
+    It cannot establish that the same benefit will occur for every
+    architecture or dataset.
+  </p>
+
+  <h3>116. Summary of BatchNorm equations</h3>
+
+  <table>
+    <thead>
+      <tr><th>Operation</th><th>Equation</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Batch mean</td>
+        <td>\(\mu=\frac{1}{B}\sum_i x_i\)</td>
+      </tr>
+      <tr>
+        <td>Batch variance</td>
+        <td>\(\sigma^2=\frac{1}{B}\sum_i(x_i-\mu)^2\)</td>
+      </tr>
+      <tr>
+        <td>Normalisation</td>
+        <td>\(\hat{x}_i=\frac{x_i-\mu}{\sqrt{\sigma^2+\epsilon}}\)</td>
+      </tr>
+      <tr>
+        <td>Scale and shift</td>
+        <td>\(y_i=\gamma\hat{x}_i+\beta\)</td>
+      </tr>
+      <tr>
+        <td>Shift gradient</td>
+        <td>\(\frac{\partial L}{\partial\beta}=\sum_i g_i\)</td>
+      </tr>
+      <tr>
+        <td>Scale gradient</td>
+        <td>\(\frac{\partial L}{\partial\gamma}=\sum_i g_i\hat{x}_i\)</td>
+      </tr>
+      <tr>
+        <td>Input gradient</td>
+        <td>\(\frac{\gamma r}{B}\left[Bg_i-\sum_k g_k-\hat{x}_i\sum_k g_k\hat{x}_k\right]\)</td>
+      </tr>
+      <tr>
+        <td>Mean batch loss</td>
+        <td>\(L_{\mathrm{mean}}=\frac{1}{B}\sum_i L_i\)</td>
+      </tr>
+      <tr>
+        <td>Mean-loss logit gradient</td>
+        <td>\(\frac{\partial L_{\mathrm{mean}}}{\partial z_{ij}}=\frac{p_{ij}-y_{ij}}{B}\)</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p>
+    In the input-gradient equation, \(r=(\sigma^2+\epsilon)^{-1/2}\)
+    and \(g_i=\partial L/\partial y_i\). The feature index is omitted
+    for readability, and all sums run over the batch for that feature.
+  </p>
+</section>
 
       <h3>How to build and run NeuralEngine</h3>
       <p>Requirements: A C++20 compiler and CMake 3.20+.</p>

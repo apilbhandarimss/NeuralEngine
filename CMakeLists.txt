@@ -14,9 +14,13 @@ add_library(neural_engine
     src/ops/arithmetic.cpp
     src/ops/loss.cpp
     src/nn/layer.cpp
+    src/nn/batch_norm.cpp
     src/nn/model.cpp
     src/optim/optimizer.cpp
     src/data/dataset.cpp
+
+    include/neural/nn/layer_base.hpp
+    include/neural/nn/batch_norm.hpp
 )
 
 target_compile_features(neural_engine PUBLIC cxx_std_20)
@@ -54,7 +58,7 @@ if(NEURAL_BUILD_TESTS)
         tests/test_gradients.cpp
     )
     target_link_libraries(neural_gradient_tests PRIVATE neural_engine)
-    add_test(NAME neural_gradient_tests COMMAND neural_gradient_tests)
+    add_test(NAME neural_gradient_tests COMMAND neural_engine_tests)
 endif()
 
 if(NEURAL_BUILD_EXAMPLES)
@@ -62,6 +66,11 @@ if(NEURAL_BUILD_EXAMPLES)
         examples/basic.cpp
     )
     target_link_libraries(basic_example PRIVATE neural_engine)
+
+    add_executable(basic_example2
+        examples/bsc.cpp
+    )
+    target_link_libraries(basic_example2 PRIVATE neural_engine)
 endif()
 
 if(NEURAL_BUILD_STUDIO)

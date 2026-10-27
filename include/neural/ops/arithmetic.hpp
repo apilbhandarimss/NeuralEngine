@@ -4,6 +4,7 @@
 #include "neural/tensor/tensor.hpp"
 
 namespace neural {
+    [[nodiscard]] Tensor transpose(const Tensor& input);
 
 // Element-wise arithmetic. Binary operations require matching shapes.
 [[nodiscard]] Tensor operator+(const Tensor& lhs, const Tensor& rhs);

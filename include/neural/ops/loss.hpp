@@ -19,4 +19,7 @@ LossResult softmax_cross_entropy(
     std::size_t target
 );
 
+[[nodiscard]]
+LossResult softmax_cross_entropy(const Tensor& logits, const Tensor& targets);
+
 } // namespace neural

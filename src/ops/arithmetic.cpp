@@ -1,4 +1,3 @@
-
 #include "neural/ops/arithmetic.hpp"
 
 #include <cstddef>
@@ -7,31 +6,6 @@
 
 namespace neural {
 namespace {
-
-template <typename Function>
-Tensor elementwise_binary(
-    const Tensor& lhs,
-    const Tensor& rhs,
-    Function function
-) {
-    if (lhs.shape() != rhs.shape()) {
-        throw std::invalid_argument(
-            "Element-wise operations require matching tensor shapes"
-        );
-    }
-
-    Tensor result(lhs.shape(), 0.0F);
-
-    const auto left = lhs.data();
-    const auto right = rhs.data();
-    auto output = result.data();
-
-    for (std::size_t i = 0; i < lhs.size(); ++i) {
-        output[i] = function(left[i], right[i]);
-    }
-
-    return result;
-}
 
 std::size_t element_count(
     const std::vector<std::size_t>& shape
@@ -45,20 +19,16 @@ std::size_t element_count(
     return count;
 }
 
-std::vector<std::size_t> batch_shape(
-    const Tensor& tensor
+std::vector<std::size_t> strides(
+    const std::vector<std::size_t>& shape
 ) {
-    const auto& shape = tensor.shape();
+    std::vector<std::size_t> result(shape.size(), 1);
 
-    // A vector has no batch dimensions.
-    if (tensor.rank() == 1) {
-        return {};
+    for (std::size_t i = shape.size(); i > 1; --i) {
+        result[i - 2] = result[i - 1] * shape[i - 1];
     }
 
-    return std::vector<std::size_t>(
-        shape.begin(),
-        shape.end() - 2
-    );
+    return result;
 }
 
 std::vector<std::size_t> broadcast_shape(
@@ -82,15 +52,92 @@ std::vector<std::size_t> broadcast_shape(
 
         if (lhs_dim != rhs_dim && lhs_dim != 1 && rhs_dim != 1) {
             throw std::invalid_argument(
-                "matmul: incompatible batch dimensions"
+                "Incompatible tensor shapes for broadcasting"
             );
         }
 
-        result[i] =
-            lhs_dim > rhs_dim ? lhs_dim : rhs_dim;
+        result[i] = lhs_dim > rhs_dim ? lhs_dim : rhs_dim;
     }
 
     return result;
+}
+
+std::size_t broadcast_offset(
+    const std::vector<std::size_t>& input_shape,
+    const std::vector<std::size_t>& input_strides,
+    const std::vector<std::size_t>& output_shape,
+    const std::vector<std::size_t>& output_strides,
+    std::size_t flat_index
+) {
+    const std::size_t alignment =
+        output_shape.size() - input_shape.size();
+
+    std::size_t offset = 0;
+
+    for (std::size_t i = 0; i < input_shape.size(); ++i) {
+        const std::size_t output_axis = alignment + i;
+
+        const std::size_t coordinate =
+            (flat_index / output_strides[output_axis])
+            % output_shape[output_axis];
+
+        if (input_shape[i] != 1) {
+            offset += coordinate * input_strides[i];
+        }
+    }
+
+    return offset;
+}
+
+template <typename Function>
+Tensor elementwise_binary(
+    const Tensor& lhs,
+    const Tensor& rhs,
+    Function function
+) {
+    const auto output_shape =
+        broadcast_shape(lhs.shape(), rhs.shape());
+
+    Tensor result(output_shape, 0.0F);
+
+    const auto left = lhs.data();
+    const auto right = rhs.data();
+    auto output = result.data();
+
+    const auto lhs_strides = strides(lhs.shape());
+    const auto rhs_strides = strides(rhs.shape());
+    const auto output_strides = strides(output_shape);
+
+    for (std::size_t i = 0; i < result.size(); ++i) {
+        const std::size_t lhs_index = broadcast_offset(
+            lhs.shape(), lhs_strides,
+            output_shape, output_strides, i
+        );
+
+        const std::size_t rhs_index = broadcast_offset(
+            rhs.shape(), rhs_strides,
+            output_shape, output_strides, i
+        );
+
+        output[i] = function(left[lhs_index], right[rhs_index]);
+    }
+
+    return result;
+}
+
+std::vector<std::size_t> batch_shape(
+    const Tensor& tensor
+) {
+    const auto& shape = tensor.shape();
+
+    if (tensor.rank() == 1) {
+        return {};
+    }
+
+    return std::vector<std::size_t>(
+        shape.begin(),
+        shape.end() - 2
+    );
 }
 
 std::size_t batch_offset(
@@ -142,8 +189,7 @@ Tensor operator+(
     const Tensor& rhs
 ) {
     return elementwise_binary(
-        lhs,
-        rhs,
+        lhs, rhs,
         [](float a, float b) { return a + b; }
     );
 }
@@ -153,8 +199,7 @@ Tensor operator-(
     const Tensor& rhs
 ) {
     return elementwise_binary(
-        lhs,
-        rhs,
+        lhs, rhs,
         [](float a, float b) { return a - b; }
     );
 }
@@ -164,8 +209,7 @@ Tensor operator*(
     const Tensor& rhs
 ) {
     return elementwise_binary(
-        lhs,
-        rhs,
+        lhs, rhs,
         [](float a, float b) { return a * b; }
     );
 }
@@ -175,8 +219,7 @@ Tensor operator/(
     const Tensor& rhs
 ) {
     return elementwise_binary(
-        lhs,
-        rhs,
+        lhs, rhs,
         [](float a, float b) { return a / b; }
     );
 }
@@ -189,6 +232,30 @@ Tensor operator-(const Tensor& input) {
 
     for (std::size_t i = 0; i < input.size(); ++i) {
         output[i] = -values[i];
+    }
+
+    return result;
+}
+
+Tensor transpose(const Tensor& input) {
+    if (input.rank() != 2) {
+        throw std::invalid_argument(
+            "transpose: input must be a rank-2 tensor"
+        );
+    }
+
+    const std::size_t rows = input.shape()[0];
+    const std::size_t cols = input.shape()[1];
+
+    Tensor result({cols, rows}, 0.0F);
+
+    const auto values = input.data();
+    auto output = result.data();
+
+    for (std::size_t i = 0; i < rows; ++i) {
+        for (std::size_t j = 0; j < cols; ++j) {
+            output[j * rows + i] = values[i * cols + j];
+        }
     }
 
     return result;
@@ -213,7 +280,6 @@ Tensor matmul(
     const auto& lhs_shape = lhs.shape();
     const auto& rhs_shape = rhs.shape();
 
-    // Interpret vectors as matrices with an implicit dimension of 1.
     const std::size_t m =
         lhs_rank == 1 ? 1 : lhs_shape[lhs_rank - 2];
 
@@ -237,7 +303,6 @@ Tensor matmul(
     const auto output_batch_shape =
         broadcast_shape(lhs_batch_shape, rhs_batch_shape);
 
-    // Remove implicit vector dimensions from the result.
     std::vector<std::size_t> output_shape = output_batch_shape;
 
     if (lhs_rank > 1) {
@@ -248,7 +313,6 @@ Tensor matmul(
         output_shape.push_back(n);
     }
 
-    // Tensor currently cannot represent a rank-zero scalar.
     if (output_shape.empty()) {
         output_shape.push_back(1);
     }
@@ -266,30 +330,14 @@ Tensor matmul(
     const std::size_t rhs_matrix_size = rhs_k * n;
     const std::size_t output_matrix_size = m * n;
 
-    for (
-        std::size_t batch = 0;
-        batch < batch_count;
-        ++batch
-    ) {
-        const std::size_t lhs_batch =
-            batch_offset(
-                lhs_batch_shape,
-                output_batch_shape,
-                batch
-            );
-
-        const std::size_t rhs_batch =
-            batch_offset(
-                rhs_batch_shape,
-                output_batch_shape,
-                batch
-            );
-
+    for (std::size_t batch = 0; batch < batch_count; ++batch) {
         const std::size_t lhs_base =
-            lhs_batch * lhs_matrix_size;
+            batch_offset(lhs_batch_shape, output_batch_shape, batch)
+            * lhs_matrix_size;
 
         const std::size_t rhs_base =
-            rhs_batch * rhs_matrix_size;
+            batch_offset(rhs_batch_shape, output_batch_shape, batch)
+            * rhs_matrix_size;
 
         const std::size_t output_base =
             batch * output_matrix_size;
@@ -310,4 +358,4 @@ Tensor matmul(
     return result;
 }
 
-} 
+} // namespace neural

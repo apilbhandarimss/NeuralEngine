@@ -1,8 +1,12 @@
+
 #include "neural/nn/layer.hpp"
+
 #include <cmath>
 #include <random>
 #include <stdexcept>
 #include <string>
+#include <vector>
+
 namespace neural {
 
 namespace {
@@ -13,7 +17,6 @@ std::size_t checked_feature_count(std::size_t count, const char* name) {
             std::string(name) + " must be greater than zero"
         );
     }
-
     return count;
 }
 
@@ -72,8 +75,7 @@ void Dense::initialise(WeightInit init, std::mt19937& rng) {
         case WeightInit::Xavier:
             standard_deviation =
                 std::sqrt(
-                    2.0F /
-                    static_cast<float>(inputs + outputs)
+                    2.0F / static_cast<float>(inputs + outputs)
                 );
             break;
 
@@ -84,56 +86,73 @@ void Dense::initialise(WeightInit init, std::mt19937& rng) {
     }
 
     std::normal_distribution<float> distribution(
-        0.0F,
-        standard_deviation
+        0.0F, standard_deviation
     );
 
-    auto values = weights_.data();
-
-    for (float& value : values) {
+    for (float& value : weights_.data()) {
         value = distribution(rng);
     }
-
-    // Biases and gradients remain zero-initialised.
 }
 
-Tensor Dense::forward(const Tensor& input) const {
-    if (input.rank() != 1) {
+Tensor Dense::forward(const Tensor& input, bool /*training*/) {
+    const std::size_t inputs = input_features();
+    const std::size_t outputs = output_features();
+
+    const bool single = input.rank() == 1;
+    const bool batched = input.rank() == 2;
+
+    if (!single && !batched) {
         throw std::invalid_argument(
-            "Dense::forward expects a rank-1 input tensor"
+            "Dense::forward expects rank-1 or rank-2 input"
         );
     }
 
-    if (input.shape()[0] != input_features()) {
+    if (input.shape().back() != inputs) {
         throw std::invalid_argument(
             "Dense::forward input feature count mismatch"
         );
     }
 
-    Tensor output({output_features()}, 0.0F);
+    const std::size_t batch_size =
+        single ? 1 : input.shape()[0];
 
-    const auto input_values = input.data();
-    const auto weight_values = weights_.data();
-    const auto bias_values = bias_.data();
-    auto output_values = output.data();
-
-    const std::size_t inputs = input_features();
-    const std::size_t outputs = output_features();
-
-    for (std::size_t out = 0; out < outputs; ++out) {
-        float sum = bias_values[out];
-
-        for (std::size_t in = 0; in < inputs; ++in) {
-            sum += weight_values[out * inputs + in]
-                 * input_values[in];
-        }
-
-        output_values[out] = sum;
+    if (batch_size == 0) {
+        throw std::invalid_argument(
+            "Dense::forward batch size must be greater than zero"
+        );
     }
 
-    // forward() is const, so the cache is updated through const_cast.
-    const_cast<Dense*>(this)->cached_input_ = input;
+    Tensor output(
+        single
+            ? std::vector<std::size_t>{outputs}
+            : std::vector<std::size_t>{batch_size, outputs},
+        0.0F
+    );
 
+    const auto x = input.data();
+    const auto w = weights_.data();
+    const auto bias_values = bias_.data();
+    auto y = output.data();
+
+    for (std::size_t b = 0; b < batch_size; ++b) {
+        for (std::size_t out = 0; out < outputs; ++out) {
+            float sum = bias_values[out];
+
+            for (std::size_t in = 0; in < inputs; ++in) {
+                const std::size_t xi =
+                    single ? in : b * inputs + in;
+
+                sum += w[out * inputs + in] * x[xi];
+            }
+
+            const std::size_t yi =
+                single ? out : b * outputs + out;
+
+            y[yi] = sum;
+        }
+    }
+
+    cached_input_ = input;
     return output;
 }
 
@@ -144,60 +163,73 @@ Tensor Dense::backward(const Tensor& output_gradient) {
         );
     }
 
-    if (output_gradient.rank() != 1 ||
-        output_gradient.shape()[0] != output_features()) {
+    const Tensor& input = *cached_input_;
+
+    const bool single = input.rank() == 1;
+    const std::size_t inputs = input_features();
+    const std::size_t outputs = output_features();
+
+    const std::size_t batch_size =
+        single ? 1 : input.shape()[0];
+
+    if (output_gradient.rank() != input.rank() ||
+        output_gradient.shape().back() != outputs ||
+        (!single &&
+         output_gradient.shape()[0] != batch_size)) {
         throw std::invalid_argument(
             "Dense::backward output gradient shape mismatch"
         );
     }
 
-    const Tensor& input = *cached_input_;
+    const auto x = input.data();
+    const auto w = weights_.data();
+    const auto dy = output_gradient.data();
 
-    const auto input_values = input.data();
-    const auto weight_values = weights_.data();
-    const auto gradient_values = output_gradient.data();
+    auto dw = weight_gradients_.data();
+    auto db = bias_gradients_.data();
 
-    auto weight_gradient_values = weight_gradients_.data();
-    auto bias_gradient_values = bias_gradients_.data();
-
-    const std::size_t inputs = input_features();
-    const std::size_t outputs = output_features();
-
-    // This implementation stores gradients for one example.
-    for (float& value : weight_gradient_values) {
+    for (float& value : dw) {
         value = 0.0F;
     }
 
-    for (float& value : bias_gradient_values) {
+    for (float& value : db) {
         value = 0.0F;
     }
 
-    Tensor input_gradient({inputs}, 0.0F);
-    auto input_gradient_values = input_gradient.data();
+    Tensor input_gradient(
+        single
+            ? std::vector<std::size_t>{inputs}
+            : std::vector<std::size_t>{batch_size, inputs},
+        0.0F
+    );
 
-    for (std::size_t out = 0; out < outputs; ++out) {
-        const float gradient = gradient_values[out];
+    auto dx = input_gradient.data();
 
-        // dC/db[out] = dC/dy[out]
-        bias_gradient_values[out] = gradient;
+    for (std::size_t b = 0; b < batch_size; ++b) {
+        for (std::size_t out = 0; out < outputs; ++out) {
+            const std::size_t dyi =
+                single ? out : b * outputs + out;
 
-        for (std::size_t in = 0; in < inputs; ++in) {
-            const std::size_t weight_index = out * inputs + in;
+            const float gradient = dy[dyi];
 
-            // dC/dW[out,in] = dC/dy[out] * input[in]
-            weight_gradient_values[weight_index] =
-                gradient * input_values[in];
+            db[out] += gradient;
 
-            // dC/dx[in] += W[out,in] * dC/dy[out]
-            input_gradient_values[in] +=
-                weight_values[weight_index] * gradient;
+            for (std::size_t in = 0; in < inputs; ++in) {
+                const std::size_t xi =
+                    single ? in : b * inputs + in;
+
+                const std::size_t wi = out * inputs + in;
+
+                dw[wi] += gradient * x[xi];
+                dx[xi] += w[wi] * gradient;
+            }
         }
     }
 
     cached_input_.reset();
-
     return input_gradient;
 }
+
 
 const Tensor& Dense::weights() const noexcept {
     return weights_;
@@ -231,4 +263,4 @@ std::size_t Dense::output_features() const noexcept {
     return weights_.shape()[0];
 }
 
-} 
+} // namespace neural

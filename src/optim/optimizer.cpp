@@ -33,5 +33,18 @@ void SGD::step(Dense& layer) const {
 float SGD::learning_rate() const noexcept {
     return learning_rate_;
 }
+void SGD::step(BatchNorm& layer) const
+{
+    auto& gamma = layer.gamma();
+    auto& beta = layer.beta();
+
+    const auto& gamma_grad = layer.gamma_grad();
+    const auto& beta_grad = layer.beta_grad();
+
+    for (std::size_t i = 0; i < gamma.size(); ++i) {
+        gamma[i] -= learning_rate_ * gamma_grad[i];
+        beta[i] -= learning_rate_ * beta_grad[i];
+    }
+}
 
 }
