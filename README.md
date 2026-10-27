@@ -1,166 +1,281 @@
 # NeuralEngine
 
-A minimalist, dependency-free neural network engine and interactive laboratory written from scratch in **C++20**. 
+A neural network engine written in **C++20**, built from scratch to explore the mathematics, algorithms, and implementation details behind neural networks.
 
-NeuralEngine explores the concrete mechanics of deep learning: contiguous tensor memory layouts, manual reverse-mode automatic differentiation (backpropagation), numerically stable log-sum-exp loss objectives, binary IDX archive parsing, and analytical gradient verification via central finite differences.
+NeuralEngine implements the core training pipeline without relying on a high-level machine-learning framework. It includes tensor storage, fully connected layers, activation functions, loss calculation, backpropagation, stochastic gradient descent, and an MNIST training pipeline.
 
----
+The project focuses on understanding how neural networks work internally, from matrix operations and derivatives to gradient propagation and parameter updates.
 
-## Key Features
+## Features
 
-- **Contiguous Tensors**: Arbitrary $N$-dimensional tensors stored in contiguous heap buffers with row-major strides and zero-overhead non-owning `std::span` views.
-- **Dense Affine Layers**: Forward and backward passes implemented directly via cache-friendly matrix transformations ($\mathbf{z} = W\mathbf{a} + \mathbf{b}$).
-- **Nonlinear Activations**: Elementwise ReLU (with subgradient at zero), Sigmoid, and Hyperbolic Tangent ($\tanh$).
-- **Stable Categorical Objective**: Combined Softmax Cross-Entropy loss computed via maximum-shifted Log-Sum-Exp arithmetic:
-  $$\mathcal{L} = m + \ln\left(\sum_{j} e^{z_j - m}\right) - z_y, \qquad m = \max_j z_j$$
-- **Exact Analytical Gradient**: Simplified output-layer error signal derived from the Softmax Jacobian:
-  $$\frac{\partial \mathcal{L}}{\partial \mathbf{z}} = \mathbf{p} - \mathbf{y}$$
-- **Weight Initializers**: He (Kaiming) normal initialization for ReLU layers and Xavier (Glorot) uniform initialization for output projections.
-- **Pure C++ Dataset Pipeline**: Zero-dependency binary parser for standard big-endian MNIST IDX image and label files.
-- **Numerical Gradient Checks**: Built-in verification comparing analytical backward gradients against central finite differences:
-  $$g_{\text{numeric}} \approx \frac{\mathcal{L}(\theta + \varepsilon) - \mathcal{L}(\theta - \varepsilon)}{2\varepsilon}$$
-- **NeuralEngine Studio**: A hardware-accelerated desktop GUI written with Raylib featuring real-time drawing inference, an IDX dataset visualizer, live loss plotting, and asynchronous training.
+- **Tensor library:** Shape-aware tensor storage and indexing.
+- **Dense layers:** Fully connected layers with configurable weight initialisation.
+- **Activation functions:** ReLU for hidden layers.
+- **Loss function:** Numerically stable softmax cross-entropy.
+- **Backpropagation:** Analytical gradients calculated directly using matrix operations and the chain rule.
+- **Optimisation:** Stochastic gradient descent (SGD).
+- **MNIST support:** Dataset loading, training, and test evaluation.
+- **Gradient verification:** Tests comparing analytical gradients with numerical approximations.
+- **NeuralEngine Studio:** A graphical interface for experimenting with the engine, if built with the required Raylib dependency.
 
----
+## MNIST Results
 
-## Empirical Benchmark (MNIST)
+NeuralEngine was trained on the MNIST handwritten-digit dataset using a fully connected neural network.
 
-Trained on the standard MNIST dataset (60,000 training samples, 10,000 test samples) using per-example Stochastic Gradient Descent ($\text{batch size} = 1$):
+| Metric | Result |
+|---|---:|
+| Training dataset | 60,000 images |
+| Test dataset | 10,000 images |
+| Network architecture | 784 → 512 → 256 → 128 → 64 → 10 |
+| Optimiser | Stochastic Gradient Descent |
+| Learning rate | 0.01 |
+| Epochs | 5 |
+| Test accuracy | **97.81%** |
 
-$$\mathbf{784} \xrightarrow{W_1} \mathbf{512} \xrightarrow{\text{ReLU}} \mathbf{256} \xrightarrow{\text{ReLU}} \mathbf{128} \xrightarrow{\text{ReLU}} \mathbf{64} \xrightarrow{\text{ReLU}} \mathbf{10} \ (\text{Logits})$$
-
-| Metric | 1 Epoch Run | 5 Epoch Run |
-|---|---|---|
-| **Test Accuracy** | **94.61%** | **97.81%** |
-| **Correct Predictions** | 9,461 / 10,000 | 9,781 / 10,000 |
-| **Mean Test Loss** | 0.178783 | ~0.082100 |
-| **Optimization** | SGD ($\eta = 0.01$) | SGD ($\eta = 0.01$) |
-| **Trainable Parameters** | 575,050 | 575,050 |
-
-### Parameter Breakdown
-
-$$N_{\text{total}} = \sum_{l=1}^{L} \left(n_{\text{in}}^{(l)} \cdot n_{\text{out}}^{(l)} + n_{\text{out}}^{(l)}\right)$$
-
-- **Layer 1** ($784 \to 512$): $784 \times 512 + 512 = 401,920$
-- **Layer 2** ($512 \to 256$): $512 \times 256 + 256 = 131,328$
-- **Layer 3** ($256 \to 128$): $256 \times 128 + 128 = 32,896$
-- **Layer 4** ($128 \to 64$): $128 \times 64 + 64 = 8,256$
-- **Layer 5** ($64 \to 10$): $64 \times 10 + 10 = 650$
-- **Total Weights & Biases**: **575,050 parameters** (~2.3 MB in 32-bit float)
-
----
+These results are from the current implementation and training configuration. Results may vary with changes to initialisation, data ordering, hyperparameters, or implementation details.
 
 ## Mathematical Foundations
 
-### 1. Forward Pass
-For layer $l$ taking activations $\mathbf{a}^{(l-1)}$:
-$$\mathbf{z}^{(l)} = W^{(l)} \mathbf{a}^{(l-1)} + \mathbf{b}^{(l)}$$
-$$\mathbf{a}^{(l)} = \operatorname{ReLU}\left(\mathbf{z}^{(l)}\right) = \max\left(\mathbf{0}, \mathbf{z}^{(l)}\right)$$
+### 1. Forward Propagation
 
-### 2. Dense Layer Backpropagation
-Given the upstream error vector arriving at layer $l$:
-$$\mathbf{\delta}^{(l)} = \frac{\partial \mathcal{L}}{\partial \mathbf{z}^{(l)}}$$
+For layer \(l\), the pre-activation output is:
 
-The gradients with respect to layer parameters and inputs are:
-$$\frac{\partial \mathcal{L}}{\partial W^{(l)}} = \mathbf{\delta}^{(l)} (\mathbf{a}^{(l-1)})^T \quad (\text{outer product})$$
-$$\frac{\partial \mathcal{L}}{\partial \mathbf{b}^{(l)}} = \mathbf{\delta}^{(l)}$$
-$$\frac{\partial \mathcal{L}}{\partial \mathbf{a}^{(l-1)}} = (W^{(l)})^T \mathbf{\delta}^{(l)} \quad (\text{propagated upstream})$$
+$$
+\mathbf{z}^{(l)}
+=
+W^{(l)}\mathbf{a}^{(l-1)}
++
+\mathbf{b}^{(l)}
+$$
 
-### 3. Hidden Layer Cascade
-To cross the ReLU activation between dense operations:
-$$\mathbf{\delta}^{(l-1)} = \left((W^{(l)})^T \mathbf{\delta}^{(l)}\right) \odot \mathbf{1}_{\mathbf{z}^{(l-1)} > 0}$$
+Here:
 
----
+- \(W^{(l)}\) is the weight matrix.
+- \(\mathbf{b}^{(l)}\) is the bias vector.
+- \(\mathbf{a}^{(l-1)}\) is the input activation vector.
+- \(\mathbf{z}^{(l)}\) is the pre-activation output.
+
+For hidden layers, ReLU produces the activation vector:
+
+$$
+\mathbf{a}^{(l)}
+=
+\max\left(\mathbf{0},\mathbf{z}^{(l)}\right)
+$$
+
+The final layer produces logits without applying ReLU. These logits are passed to the loss function.
+
+### 2. Softmax Cross-Entropy
+
+For logits \(z_j\), the softmax probability of class \(j\) is:
+
+$$
+p_j
+=
+\frac{e^{z_j}}{\sum_k e^{z_k}}
+$$
+
+To improve numerical stability, the loss uses the Log-Sum-Exp formulation. Let
+
+$$
+m = \max_j z_j
+$$
+
+For target class \(y\), the cross-entropy loss is:
+
+$$
+\mathcal{L}
+=
+m
++
+\ln\left(\sum_j e^{z_j-m}\right)
+-
+z_y
+$$
+
+For a one-hot target vector \(\mathbf{y}\), the gradient with respect to the logits simplifies to:
+
+$$
+\frac{\partial\mathcal{L}}{\partial\mathbf{z}}
+=
+\mathbf{p}-\mathbf{y}
+$$
+
+This simplification avoids explicitly calculating the full softmax Jacobian during backpropagation.
+
+### 3. Dense-Layer Backpropagation
+
+Define the incoming gradient for layer \(l\) as:
+
+$$
+\boldsymbol{\delta}^{(l)}
+=
+\frac{\partial\mathcal{L}}{\partial\mathbf{z}^{(l)}}
+$$
+
+The weight gradient is the outer product of the error vector and the preceding layer's activation:
+
+$$
+\frac{\partial\mathcal{L}}{\partial W^{(l)}}
+=
+\boldsymbol{\delta}^{(l)}
+\left(\mathbf{a}^{(l-1)}\right)^T
+$$
+
+The bias gradient is:
+
+$$
+\frac{\partial\mathcal{L}}{\partial\mathbf{b}^{(l)}}
+=
+\boldsymbol{\delta}^{(l)}
+$$
+
+The gradient propagated to the previous activation vector is:
+
+$$
+\frac{\partial\mathcal{L}}{\partial\mathbf{a}^{(l-1)}}
+=
+\left(W^{(l)}\right)^T
+\boldsymbol{\delta}^{(l)}
+$$
+
+For a hidden ReLU layer, the gradient is multiplied elementwise by the derivative of ReLU:
+
+$$
+\boldsymbol{\delta}^{(l-1)}
+=
+\left[
+\left(W^{(l)}\right)^T
+\boldsymbol{\delta}^{(l)}
+\right]
+\odot
+\mathbf{1}_{\mathbf{z}^{(l-1)}>0}
+$$
+
+Here, \(\odot\) denotes elementwise multiplication, and the indicator vector is 1 where the corresponding pre-activation is positive and 0 otherwise.
+
+NeuralEngine implements these operations directly rather than relying on an external automatic differentiation framework.
+
+### 4. Numerical Gradient Verification
+
+Analytical gradients are checked against central finite differences:
+
+$$
+g_{\text{numeric}}
+\approx
+\frac{
+\mathcal{L}(\theta+\varepsilon)
+-
+\mathcal{L}(\theta-\varepsilon)
+}{
+2\varepsilon
+}
+$$
+
+Here, \(\theta\) represents a parameter being checked and \(\varepsilon\) is a small perturbation.
+
+Comparing numerical and analytical gradients helps identify errors in the backward-pass implementation.
 
 ## Project Structure
 
-```
+```text
 .
 ├── CMakeLists.txt
 ├── include/
 │   └── neural/
 │       ├── data/
-│       │   └── dataset.hpp          # MNIST IDX binary reader
+│       │   └── dataset.hpp
 │       ├── nn/
-│       │   ├── layer.hpp            # Dense layer interface
-│       │   └── model.hpp            # Network container
+│       │   ├── layer.hpp
+│       │   └── model.hpp
 │       ├── ops/
-│       │   ├── activations.hpp      # ReLU, Sigmoid, Tanh
-│       │   ├── arithmetic.hpp       # Contiguous matrix math
-│       │   └── loss.hpp             # Fused Softmax Cross-Entropy
+│       │   ├── activations.hpp
+│       │   ├── arithmetic.hpp
+│       │   └── loss.hpp
 │       ├── optim/
-│       │   └── optimizer.hpp        # SGD implementation
+│       │   └── optimizer.hpp
 │       └── tensor/
-│           └── tensor.hpp           # N-D contiguous tensor
+│           └── tensor.hpp
 ├── src/
-│   ├── data/dataset.cpp
-│   ├── nn/layer.cpp
-│   ├── ops/activations.cpp
-│   ├── ops/loss.cpp
-│   ├── optim/optimizer.cpp
-│   └── tensor/tensor.cpp
+│   ├── data/
+│   │   └── dataset.cpp
+│   ├── nn/
+│   │   └── layer.cpp
+│   ├── ops/
+│   │   ├── activations.cpp
+│   │   └── loss.cpp
+│   ├── optim/
+│   │   └── optimizer.cpp
+│   └── tensor/
+│       └── tensor.cpp
 ├── examples/
-│   ├── basic.cpp                    # Minimal headless training example
-│   └── studio.cpp                   # Raylib graphical interface
+│   ├── basic.cpp
+│   └── studio.cpp
 ├── tests/
-│   ├── test_main.cpp                # Core unit test runner
-│   └── test_gradients.cpp           # Finite-difference gradient checks
+│   ├── test_main.cpp
+│   └── test_gradients.cpp
 └── data/
-    └── mnist/                       # Local MNIST binary IDX dataset
+    └── mnist/
 ```
-
----
 
 ## Building and Testing
 
-### Prerequisites
-- A **C++20** compatible compiler (GCC 11+, Clang 13+, or MSVC 2019+)
-- **CMake** 3.20 or newer
-- *(Optional)* **Raylib 4.5+** (Required only for building `neural_studio`)
+### Requirements
 
-### 1. Clone & Download Dataset
-Download the standard uncompressed MNIST files into `data/mnist/`:
+- A C++20-compatible compiler, such as GCC 11+, Clang 13+, or a suitable MSVC version.
+- CMake 3.20 or newer.
+- Raylib, if building NeuralEngine Studio.
+
+The core engine and headless example do not require Raylib.
+
+### 1. Download the MNIST Dataset
+
+From the project root:
+
 ```bash
 mkdir -p data/mnist
 cd data/mnist
 
-# Download training & test image/label archives
 curl -O https://storage.googleapis.com/cvdf-datasets/mnist/train-images-idx3-ubyte.gz
 curl -O https://storage.googleapis.com/cvdf-datasets/mnist/train-labels-idx1-ubyte.gz
 curl -O https://storage.googleapis.com/cvdf-datasets/mnist/t10k-images-idx3-ubyte.gz
 curl -O https://storage.googleapis.com/cvdf-datasets/mnist/t10k-labels-idx1-ubyte.gz
 
-# Extract archives to obtain raw IDX binaries
 gunzip *.gz
 cd ../..
 ```
 
-### 2. Configure and Compile
-```bash
-# Configure release build
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+The dataset parser expects the extracted, uncompressed IDX files.
 
-# Compile all targets in parallel
+### 2. Configure and Compile
+
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build --parallel
 ```
 
-### 3. Run Test Suite
-Verify analytical gradients, tensor indexing, and serialization:
+### 3. Run the Tests
+
 ```bash
 ctest --test-dir build --output-on-failure
 ```
 
----
+The test suite checks core tensor functionality and analytical gradients against numerical estimates, assuming the corresponding tests are enabled in the CMake configuration.
 
-## Quickstart Usage
+### 4. Train and Evaluate
 
-### Headless CLI Example
-Train and evaluate a 5-layer network from the command line:
+Run the headless training example:
+
 ```bash
 ./build/basic_example
 ```
 
-### Programmatic C++20 API
+This command assumes the executable target is named `basic_example` and that the example's dataset paths are compatible with the working directory. Check your `CMakeLists.txt` and `examples/basic.cpp` if the executable or dataset cannot be found.
+
+## Programmatic Usage
+
+The following example demonstrates a single training step using the engine's C++ API. It creates a small network, performs a forward pass, calculates the loss, propagates gradients backwards, and updates the parameters.
+
 ```cpp
 #include "neural/data/dataset.hpp"
 #include "neural/nn/layer.hpp"
@@ -168,92 +283,80 @@ Train and evaluate a 5-layer network from the command line:
 #include "neural/ops/loss.hpp"
 #include "neural/optim/optimizer.hpp"
 
+#include <cstddef>
+
 int main() {
-    // 1. Initialize network layers
-    neural::Dense fc1(784, 512, neural::WeightInit::He, /*seed=*/101);
-    neural::ReLU relu1;
-    neural::Dense fc2(512, 10, neural::WeightInit::Xavier, /*seed=*/102);
+    neural::Dense fc1(784, 512, neural::WeightInit::He, 101);
+    neural::Dense fc2(512, 10, neural::WeightInit::Xavier, 102);
 
-    neural::SGD optimizer(/*learning_rate=*/0.01f);
+    neural::ReLU relu;
+    neural::SGD optimizer(0.01F);
 
-    // 2. Load dataset
-    neural::MNISTDataset train_data("data/mnist/train-images-idx3-ubyte",
-                                    "data/mnist/train-labels-idx1-ubyte");
+    neural::MNISTDataset dataset(
+        "data/mnist/train-images-idx3-ubyte",
+        "data/mnist/train-labels-idx1-ubyte"
+    );
 
-    // 3. One forward + backward SGD step on sample 0
-    neural::Tensor x = train_data.image(0);
-    size_t target_label = train_data.label(0);
+    const neural::Tensor input = dataset.image(0);
+    const std::size_t target = dataset.label(0);
 
-    // Forward
-    neural::Tensor h = relu1.forward(fc1.forward(x));
-    neural::Tensor logits = fc2.forward(h);
+    // Forward pass
+    const neural::Tensor hidden =
+        relu.forward(fc1.forward(input));
 
-    // Loss + Logits Gradient
-    neural::LossResult result = neural::softmax_cross_entropy(logits, target_label);
+    const neural::Tensor logits =
+        fc2.forward(hidden);
 
-    // Backward pass
-    neural::Tensor g = fc2.backward(result.logits_gradient);
-    fc1.backward(relu1.backward(g));
+    // Calculate loss and gradient with respect to logits
+    const auto result =
+        neural::softmax_cross_entropy(logits, target);
 
-    // Update weights
+    // Backward pass: output layer, activation, input layer
+    const neural::Tensor hidden_gradient =
+        fc2.backward(result.gradient);
+
+    const neural::Tensor input_gradient =
+        fc1.backward(relu.backward(hidden_gradient));
+
+    // Update parameters after gradients have been calculated
     optimizer.step(fc1);
     optimizer.step(fc2);
 
+    (void)input_gradient;
     return 0;
 }
 ```
 
----
+**Note:** This example assumes `softmax_cross_entropy` returns a result with a `gradient` member, `Dense::backward` accepts the engine's tensor type, and `SGD::step` accepts a `Dense` layer. Adjust the example if your actual API uses different names or signatures.
 
-## NeuralEngine Studio
+## Design Goals
 
-`neural_studio` is an immediate-mode desktop application built with Raylib to inspect, train, and test models interactively.
+NeuralEngine is intended to make the internal mechanics of neural networks explicit.
 
-Launch the GUI:
-```bash
-./build/neural_studio
-```
+- **Understandability:** Core algorithms are implemented directly rather than delegated to a high-level framework.
+- **Mathematical transparency:** Forward propagation, loss calculation, and backpropagation correspond to explicit mathematical operations.
+- **Modularity:** Tensor operations, neural-network layers, data loading, and optimisation are separated into distinct components.
+- **Extensibility:** The architecture provides a foundation for adding more operations, layers, and optimisation methods.
+- **Testing:** Numerical gradient checks help validate the correctness of analytical derivatives.
 
-Launch headless verification checks (no window required):
-```bash
-./build/neural_studio --self-test
-```
+## Future Work
 
-### Studio Capabilities
-1. **Model Browser**: Scans workspace roots, validates model topologies, and loads saved parameters.
-2. **Drawing Canvas**: A 280×280 input canvas that matches the MNIST preprocessing pipeline (bounding box isolation, aspect-ratio scaling to 20px, and center-of-mass centering) for real-time digit recognition.
-3. **Data Explorer**: Visual inspection of arbitrary training and test IDX records alongside live confusion matrix heatmaps.
-4. **Asynchronous Trainer**: Background thread training using decoupled model clones with live loss graphing, ETA calculation, and early-stop checkpoint preservation.
+Potential directions for development include:
 
----
+- Additional activation functions and loss functions.
+- More optimisation algorithms, such as Adam.
+- Batch-based training and matrix operations optimised for larger workloads.
+- Convolutional layers and other neural-network architectures.
+- Improved tensor operations and performance profiling.
+- More extensive gradient checks and automated tests.
+- Expanded visualisation and experimentation tools in NeuralEngine Studio.
 
-## Checkpoint Format
+## Acknowledgements
 
-Models are serialized to human-readable plain text (`.txt`) with dimension and metadata headers:
+NeuralEngine was developed as a learning project to explore neural-network mathematics, C++ systems programming, and the implementation of machine-learning algorithms from scratch.
 
-```text
-NEURAL_ENGINE_CHECKPOINT 1
-ARCHITECTURE 784 512 256 128 64 10
-LAYER fc1
-WEIGHTS
-2 512 784
-0.0124 -0.0412 0.0089 ...
-BIAS
-1 512
-0.0001 -0.0002 0.0000 ...
-LAYER fc2
-...
-```
+The MNIST dataset is used for handwritten-digit classification.
 
-The deserializer performs validation against magic headers, layer rank, dimension bounds, unexpected EOFs, and non-finite (`NaN`/`Inf`) floating-point values.
+## License
 
----
-
-## Roadmap
-
-- [ ] Mini-batch matrix-matrix multiplication ($B \times N$).
-- [ ] SIMD / AVX2 vectorization for matrix multiplication kernels.
-- [ ] Momentum and Adam optimizers.
-- [ ] 2D Convolution (`Conv2D`) and Max Pooling layers.
-
----
+This project is distributed under the terms of the MIT License, if the repository's `LICENSE` file specifies that licence.
