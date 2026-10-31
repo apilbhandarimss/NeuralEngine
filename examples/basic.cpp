@@ -43,7 +43,7 @@ int main() {
 
     neural::ReLU relu1, relu2, relu3, relu4;
 
-    neural::SGD optimizer(0.1F);
+    neural::Adam optimizer(0.1F);
 
     std::vector<std::size_t> indices(training.size());
     std::iota(indices.begin(), indices.end(), 0);

@@ -2406,6 +2406,684 @@ gradient = fc4.backward(gradient);</code></pre>
   </p>
 </section>
 
+<!-- PART XXXIII -->
+<section id="part-33">
+  <h2>Part XXXIII — MomentumSGD: Gradient Accumulation and Velocity</h2>
+
+  <h3>117. Why ordinary SGD can be inefficient</h3>
+
+  <p>
+    Ordinary Stochastic Gradient Descent updates parameters using the
+    current gradient. Each update is independent of the previous gradient:
+  </p>
+
+  \[
+    \theta_t = \theta_{t-1} - \eta g_t
+  \]
+
+  <p>
+    Here, \(g_t\) is the gradient at the current training step and
+    \(\eta\) is the learning rate.
+  </p>
+
+  <p>
+    This means SGD does not explicitly retain information about the
+    direction of previous updates. When gradients fluctuate significantly
+    between successive batches, the parameter updates can also fluctuate.
+  </p>
+
+  <h3>118. Introducing momentum</h3>
+
+  <p>
+    Momentum addresses this by maintaining a running accumulation of
+    previous gradients. This accumulated quantity is commonly called
+    velocity.
+  </p>
+
+  \[
+    v_t = \mu v_{t-1} + g_t
+  \]
+
+  <p>
+    The parameter update becomes:
+  </p>
+
+  \[
+    \theta_t = \theta_{t-1} - \eta v_t
+  \]
+
+  <p>
+    The momentum coefficient \(\mu\) determines how much of the previous
+    velocity is retained. A larger value gives more weight to previous
+    gradients.
+  </p>
+
+  <p>
+    When successive gradients point in similar directions, their
+    accumulated effect increases the update magnitude. When gradients
+    fluctuate, the accumulated velocity can smooth some of that variation.
+  </p>
+
+  <h3>119. Normalised momentum variant</h3>
+
+  <p>
+    In NeuralEngine, MomentumSGD also supports a normalised accumulation
+    mode. Instead of adding the entire current gradient, it uses an
+    exponential moving average:
+  </p>
+
+  \[
+    v_t = \mu v_{t-1} + (1-\mu)g_t
+  \]
+
+  <p>
+    The parameter update remains:
+  </p>
+
+  \[
+    \theta_t = \theta_{t-1} - \eta v_t
+  \]
+
+  <p>
+    The factor \(1-\mu\) makes the accumulated value an exponentially
+    weighted average of past gradients rather than their unnormalised
+    accumulation.
+  </p>
+
+  <p>
+    These are two different update conventions. The normalised variant
+    should not be confused with the classical momentum equation.
+  </p>
+
+  <h3>120. Implementing MomentumSGD in NeuralEngine</h3>
+
+  <p>
+    MomentumSGD maintains separate velocity arrays for weights and biases.
+    Since different Dense layers have different parameters, each layer
+    needs its own optimiser state.
+  </p>
+
+  <pre><code>struct VelocityState {
+    std::vector&lt;float&gt; weight_velocity;
+    std::vector&lt;float&gt; bias_velocity;
+};
+
+std::unordered_map&lt;Dense*, VelocityState&gt; dense_states_;
+std::unordered_map&lt;BatchNorm*, VelocityState&gt; norm_states_;</code></pre>
+
+  <p>
+    The maps associate each layer's address with its corresponding
+    optimiser state. This allows one MomentumSGD instance to update
+    multiple layers without mixing their velocities.
+  </p>
+
+  <p>
+    For a Dense layer, the implementation maintains separate velocity
+    values for the weight and bias gradients. In normalised mode:
+  </p>
+
+  \[
+    v_t = \mu v_{t-1} + (1-\mu)g_t
+  \]
+
+  <p>
+    In classical mode:
+  </p>
+
+  \[
+    v_t = \mu v_{t-1} + g_t
+  \]
+
+  <p>
+    The resulting velocity is multiplied by the learning rate and
+    subtracted from the corresponding parameter.
+  </p>
+
+  <h3>121. Applying momentum to BatchNorm</h3>
+
+  <p>
+    BatchNorm contains two trainable parameter vectors:
+  </p>
+
+  <ul>
+    <li>\(\gamma\): learned scaling parameters.</li>
+    <li>\(\beta\): learned shifting parameters.</li>
+  </ul>
+
+  <p>
+    MomentumSGD applies the same update mechanism to their gradients.
+    The velocity arrays associated with \(\gamma\) and \(\beta\) are
+    stored independently.
+  </p>
+
+  <p>
+    This is important because BatchNorm parameters are trainable
+    parameters too. They must receive optimiser updates just like
+    Dense weights and biases.
+  </p>
+
+  <h3>122. MomentumSGD summary</h3>
+
+  <table>
+    <thead>
+      <tr><th>Property</th><th>Description</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Stored state</td><td>Previous gradient accumulation</td></tr>
+      <tr><td>State type</td><td>Velocity vectors</td></tr>
+      <tr><td>Learning rate</td><td>Controls update magnitude</td></tr>
+      <tr><td>Momentum</td><td>Controls retained gradient history</td></tr>
+      <tr><td>Supported layers</td><td>Dense and BatchNorm</td></tr>
+    </tbody>
+  </table>
+</section>
+
+
+<!-- PART XXXIV -->
+<section id="part-34">
+  <h2>Part XXXIV — RMSProp: Adaptive Learning Rates</h2>
+
+  <h3>123. The problem with a single learning rate</h3>
+
+  <p>
+    Standard SGD applies the same learning rate to every parameter.
+    However, different parameters can have gradients with significantly
+    different magnitudes.
+  </p>
+
+  <p>
+    A learning rate that works well for one parameter may produce
+    excessively large updates for another. RMSProp addresses this by
+    adapting the effective learning rate independently for each parameter.
+  </p>
+
+  <h3>124. Exponential moving average of squared gradients</h3>
+
+  <p>
+    Instead of accumulating raw gradients like MomentumSGD, RMSProp
+    maintains an exponential moving average of squared gradients:
+  </p>
+
+  \[
+    v_t = \rho v_{t-1} + (1-\rho)g_t^2
+  \]
+
+  <p>
+    Here:
+  </p>
+
+  <ul>
+    <li>\(v_t\): running average of squared gradients.</li>
+    <li>\(g_t\): current gradient.</li>
+    <li>\(\rho\): decay coefficient.</li>
+  </ul>
+
+  <p>
+    Squaring the gradient removes its sign. Consequently, this accumulator
+    tracks the recent scale of gradients rather than their direction.
+  </p>
+
+  <p>
+    The decay coefficient determines how quickly older squared gradients
+    lose influence. A larger \(\rho\) retains more historical information.
+  </p>
+
+  <h3>125. Adaptive parameter update</h3>
+
+  <p>
+    The accumulated squared gradient is used to scale the current gradient:
+  </p>
+
+  \[
+    \theta_t =
+    \theta_{t-1} -
+    \frac{\eta g_t}{\sqrt{v_t}+\epsilon}
+  \]
+
+  <p>
+    The square root brings the accumulator back to the gradient's scale.
+    The small positive \(\epsilon\) prevents division by zero and improves
+    numerical stability.
+  </p>
+
+  <p>
+    When a parameter consistently receives large gradients, its
+    denominator tends to become larger, reducing its effective update.
+    Parameters with smaller gradient magnitudes can receive relatively
+    larger updates.
+  </p>
+
+  <h3>126. Implementing RMSProp in NeuralEngine</h3>
+
+  <p>
+    The implementation follows the same general architecture as
+    MomentumSGD. It maintains separate state for Dense and BatchNorm
+    layers using unordered maps.
+  </p>
+
+  <p>
+    Each state contains two arrays:
+  </p>
+
+  <pre><code>struct VelocityState {
+    std::vector&lt;float&gt; weight_velocity;
+    std::vector&lt;float&gt; bias_velocity;
+};</code></pre>
+
+  <p>
+    Despite their names, these arrays do not contain velocities.
+    They contain exponential moving averages of squared gradients.
+    The names were retained to keep the implementation consistent with
+    the existing MomentumSGD structure.
+  </p>
+
+  <p>
+    For every weight, the implementation first updates its squared-gradient
+    accumulator:
+  </p>
+
+  \[
+    v_t = \rho v_{t-1} + (1-\rho)g_t^2
+  \]
+
+  <p>
+    It then updates the weight using the current gradient and the
+    accumulator. Biases follow exactly the same procedure using their
+    own gradients and accumulator.
+  </p>
+
+  <p>
+    In the implementation, the variable named <code>momentum_</code>
+    represents the RMSProp decay coefficient \(\rho\), not classical
+    momentum. The implementation also uses a small epsilon value
+    to stabilise the denominator.
+  </p>
+
+  <h3>127. RMSProp and BatchNorm</h3>
+
+  <p>
+    RMSProp also updates the trainable BatchNorm parameters \(\gamma\)
+    and \(\beta\).
+  </p>
+
+  <p>
+    Each parameter has its own squared-gradient accumulator. The
+    gamma accumulator uses the squared gamma gradient, while the
+    beta accumulator uses the squared beta gradient.
+  </p>
+
+  <p>
+    These accumulators must remain independent. Combining the two
+    gradients would incorrectly mix the optimisation histories of
+    unrelated parameters.
+  </p>
+
+  <h3>128. RMSProp summary</h3>
+
+  <table>
+    <thead>
+      <tr><th>Property</th><th>Description</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Stored state</td><td>Moving average of squared gradients</td></tr>
+      <tr><td>State type</td><td>Second raw moment estimate</td></tr>
+      <tr><td>Decay coefficient</td><td>\(\rho\)</td></tr>
+      <tr><td>Epsilon</td><td>Prevents division by zero</td></tr>
+      <tr><td>Learning rate</td><td>Adapted per parameter</td></tr>
+      <tr><td>Supported layers</td><td>Dense and BatchNorm</td></tr>
+    </tbody>
+  </table>
+</section>
+
+
+<!-- PART XXXV -->
+<section id="part-35">
+  <h2>Part XXXV — Adam: Combining First and Second Moments</h2>
+
+  <h3>129. Combining Momentum and RMSProp</h3>
+
+  <p>
+    MomentumSGD and RMSProp maintain different kinds of information.
+    MomentumSGD tracks gradient direction, while RMSProp tracks gradient
+    magnitude through squared gradients.
+  </p>
+
+  <p>
+    Adam, short for Adaptive Moment Estimation, combines both ideas.
+    It maintains two exponentially weighted moving averages:
+  </p>
+
+  <ul>
+    <li>First moment: average of gradients.</li>
+    <li>Second moment: average of squared gradients.</li>
+  </ul>
+
+  <h3>130. First moment estimate</h3>
+
+  <p>
+    The first moment estimate is calculated as:
+  </p>
+
+  \[
+    m_t = \beta_1m_{t-1}+(1-\beta_1)g_t
+  \]
+
+  <p>
+    This is an exponentially weighted average of the gradients.
+    It retains information about their direction and magnitude.
+  </p>
+
+  <h3>131. Second moment estimate</h3>
+
+  <p>
+    The second moment estimate is:
+  </p>
+
+  \[
+    v_t = \beta_2v_{t-1}+(1-\beta_2)g_t^2
+  \]
+
+  <p>
+    Unlike the first moment, this tracks the average squared gradient.
+    It provides a measure of recent gradient magnitude.
+  </p>
+
+  <h3>132. Bias correction</h3>
+
+  <p>
+    Both moving averages are initialised to zero. During the first
+    optimisation steps, this initialisation biases their estimates
+    towards zero.
+  </p>
+
+  <p>
+    Adam compensates for this using bias correction:
+  </p>
+
+  \[
+    \hat{m}_t = \frac{m_t}{1-\beta_1^t}
+  \]
+
+  \[
+    \hat{v}_t = \frac{v_t}{1-\beta_2^t}
+  \]
+
+  <p>
+    Here, \(t\) is the optimiser timestep. As the timestep increases,
+    the correction factors approach one, reducing the influence of
+    the zero initialisation.
+  </p>
+
+  <h3>133. Adam parameter update</h3>
+
+  <p>
+    The bias-corrected estimates are combined to calculate the update:
+  </p>
+
+  \[
+    \theta_t =
+    \theta_{t-1} -
+    \eta\frac{\hat{m}_t}{\sqrt{\hat{v}_t}+\epsilon}
+  \]
+
+  <p>
+    The first moment supplies the direction of the update, while the
+    second moment scales it according to recent squared-gradient
+    magnitudes.
+  </p>
+
+  <h3>134. Implementing Adam in NeuralEngine</h3>
+
+  <p>
+    Adam requires more state than either MomentumSGD or RMSProp.
+    Each trainable parameter needs two accumulators: one for its
+    first moment and another for its second moment.
+  </p>
+
+  <pre><code>struct AdamState {
+    std::vector&lt;float&gt; weight_m;
+    std::vector&lt;float&gt; bias_m;
+    std::vector&lt;float&gt; weight_v;
+    std::vector&lt;float&gt; bias_v;
+};</code></pre>
+
+  <p>
+    The implementation maintains separate state maps for Dense and
+    BatchNorm layers. Each layer therefore has independent first and
+    second moment estimates for its parameters.
+  </p>
+
+  <p>
+    For Dense layers, the weight and bias gradients update their
+    corresponding moment arrays. The bias-corrected values are then
+    used in the parameter updates.
+  </p>
+
+  <p>
+    BatchNorm follows the same process. Its gamma and beta parameters
+    each maintain independent first and second moment estimates.
+  </p>
+
+  <h3>135. Adam timestep and implementation detail</h3>
+
+  <p>
+    Bias correction depends on the number of updates received by a
+    parameter. The timestep must therefore advance once per update
+    of that parameter, not once for every individual weight or bias.
+  </p>
+
+  <p>
+    In an implementation where the optimiser is called separately
+    for each layer, a timestep stored inside each layer's AdamState
+    is a straightforward solution. Each layer advances its own
+    timestep whenever its parameters are updated.
+  </p>
+
+  <p>
+    A single global timestep incremented inside every layer's
+    <code>step()</code> call would advance multiple times during
+    one training batch. That would produce incorrect bias-correction
+    factors when several layers are updated in succession.
+  </p>
+
+  <h3>136. Adam summary</h3>
+
+  <table>
+    <thead>
+      <tr><th>Property</th><th>Description</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>First moment</td><td>Moving average of gradients</td></tr>
+      <tr><td>Second moment</td><td>Moving average of squared gradients</td></tr>
+      <tr><td>Bias correction</td><td>Compensates for zero initialisation</td></tr>
+      <tr><td>\(\beta_1\)</td><td>First moment decay coefficient</td></tr>
+      <tr><td>\(\beta_2\)</td><td>Second moment decay coefficient</td></tr>
+      <tr><td>Epsilon</td><td>Numerical stability</td></tr>
+      <tr><td>Supported layers</td><td>Dense and BatchNorm</td></tr>
+    </tbody>
+  </table>
+</section>
+
+
+<!-- PART XXXVI -->
+<section id="part-36">
+  <h2>Part XXXVI — Optimiser State, Implementation and Comparison</h2>
+
+  <h3>137. Why optimiser state belongs to each layer</h3>
+
+  <p>
+    An optimiser does not only calculate parameter updates. It also
+    retains information from previous training steps.
+  </p>
+
+  <p>
+    Consider a network containing several Dense layers. Each layer
+    has different weights, biases, and gradients. Sharing one
+    accumulator across all layers would mix unrelated optimisation
+    histories.
+  </p>
+
+  <p>
+    NeuralEngine solves this by associating each layer with its own
+    optimiser state through an unordered map:
+  </p>
+
+  <pre><code>std::unordered_map&lt;Dense*, OptimizerState&gt; dense_states_;
+std::unordered_map&lt;BatchNorm*, OptimizerState&gt; norm_states_;</code></pre>
+
+  <p>
+    This allows a single optimiser instance to manage multiple
+    layers while preserving their independent histories.
+  </p>
+
+  <p>
+    The layer objects must remain at stable memory addresses while
+    their optimiser states are being used. Moving or destroying a
+    layer without handling its associated state can invalidate
+    the map's assumptions.
+  </p>
+
+  <h3>138. Initialising optimiser state</h3>
+
+  <p>
+    When a layer is encountered for the first time, its optimiser
+    state does not yet exist. The implementation creates the state
+    and initialises its vectors to zero.
+  </p>
+
+  <p>
+    It also checks whether the state vector sizes match the
+    corresponding gradient vectors. If the dimensions differ,
+    the accumulators are reinitialised.
+  </p>
+
+  <p>
+    This ensures that each parameter has a corresponding state
+    value before the optimiser attempts to update it.
+  </p>
+
+  <h3>139. Comparing the implemented optimisers</h3>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Optimiser</th>
+        <th>Stored information</th>
+        <th>Adaptive scaling</th>
+        <th>Bias correction</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>SGD</td>
+        <td>None</td>
+        <td>No</td>
+        <td>No</td>
+      </tr>
+      <tr>
+        <td>MomentumSGD</td>
+        <td>Gradient accumulation</td>
+        <td>No</td>
+        <td>No</td>
+      </tr>
+      <tr>
+        <td>RMSProp</td>
+        <td>Squared-gradient average</td>
+        <td>Yes</td>
+        <td>No</td>
+      </tr>
+      <tr>
+        <td>Adam</td>
+        <td>First and second moments</td>
+        <td>Yes</td>
+        <td>Yes</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>140. Comparing optimisers experimentally</h3>
+
+  <p>
+    Implementing multiple optimisers makes it possible to investigate
+    how their different update rules affect NeuralEngine's training.
+    However, comparing their results requires controlled experiments.
+  </p>
+
+  <p>
+    Keep the architecture, dataset split, parameter initialisation,
+    batch size, and evaluation procedure consistent whenever possible.
+    Record the learning rate and other optimiser-specific parameters.
+  </p>
+
+  <p>
+    Useful measurements include:
+  </p>
+
+  <ul>
+    <li>Training loss per epoch.</li>
+    <li>Mean test cross-entropy.</li>
+    <li>Test accuracy.</li>
+    <li>Number of epochs and optimiser updates.</li>
+    <li>Training time.</li>
+    <li>Occurrence of non-finite losses or gradients.</li>
+  </ul>
+
+  <p>
+    A higher accuracy does not necessarily imply a lower cross-entropy
+    loss. Accuracy measures classification correctness, whereas
+    cross-entropy also measures the probability assigned to the
+    correct class.
+  </p>
+
+  <p>
+    An optimiser should therefore not be judged using accuracy alone.
+    Its convergence behaviour, loss curves, computational cost, and
+    stability should also be considered.
+  </p>
+
+  <h3>141. Final optimiser equations</h3>
+
+  <table>
+    <thead>
+      <tr><th>Optimiser</th><th>Update rule</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>SGD</td>
+        <td>\(\theta_t=\theta_{t-1}-\eta g_t\)</td>
+      </tr>
+      <tr>
+        <td>Momentum</td>
+        <td>\(v_t=\mu v_{t-1}+g_t\)</td>
+      </tr>
+      <tr>
+        <td>Normalised momentum</td>
+        <td>\(v_t=\mu v_{t-1}+(1-\mu)g_t\)</td>
+      </tr>
+      <tr>
+        <td>RMSProp</td>
+        <td>\(v_t=\rho v_{t-1}+(1-\rho)g_t^2\)</td>
+      </tr>
+      <tr>
+        <td>Adam first moment</td>
+        <td>\(m_t=\beta_1m_{t-1}+(1-\beta_1)g_t\)</td>
+      </tr>
+      <tr>
+        <td>Adam second moment</td>
+        <td>\(v_t=\beta_2v_{t-1}+(1-\beta_2)g_t^2\)</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p>
+    These optimisers use different forms of historical gradient
+    information to determine parameter updates. Understanding
+    their state and update equations is essential to implementing
+    them correctly in a neural network engine.
+  </p>
+</section>
+
+
       <h3>How to build and run NeuralEngine</h3>
       <p>Requirements: A C++20 compiler and CMake 3.20+.</p>
       <pre><code># 1. Configure the build

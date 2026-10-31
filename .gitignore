@@ -2,6 +2,7 @@
 /build/
 /build-*/
 /cmake-build-*/
+/exports/
 
 # Compiled binaries and libraries
 *.o
@@ -16,8 +17,6 @@
 *.lib
 *.pdb
 
-# MNIST dataset (download separately)
-]
 
 
 # Generated compile database

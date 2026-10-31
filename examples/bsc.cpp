@@ -1,3 +1,5 @@
+
+//This is old basic.cpp
 #include "neural/data/dataset.hpp"
 #include "neural/nn/layer.hpp"
 #include "neural/ops/activations.hpp"
@@ -29,7 +31,7 @@ int main() {
     neural::Dense fc5(64, 10, neural::WeightInit::Xavier, 105);
 
     neural::ReLU relu1, relu2, relu3, relu4;
-    neural::SGD optimizer(0.01F);
+    neural::RMSprop optimizer(0.01F);
 
     std::vector<std::size_t> indices(training.size());
     std::iota(indices.begin(), indices.end(), 0);
