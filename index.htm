@@ -5,12 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>NeuralEngine: From Numbers to a Trained Neural Network in C++20</title>
 
-  <!-- Google Fonts: Merriweather (Serif) & Inter (Sans) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Merriweather:ital,wght@0,300;0,400;0,700;1,300;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 
-  <!-- KaTeX for academic mathematical typography -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
@@ -22,43 +20,22 @@
           ]});"></script>
 
   <style>
-    /*
-     * Theme Inspired by "The Spinning ASCII Donut":
-     * - Deep Royal / Midnight Blue Gradient Hero Header
-     * - Clean Paper-White Content Canvas
-     * - Blue Vertical Left-Bar Section Headings
-     * - Dark Terminal Slate Cards for Interactive Demos & Code
-     * - Neon Terminal Green Canvas / Visual Output
-     * - Smooth Purple-Indigo Gradient Pill Buttons
-     */
     :root {
       --bg: #f8fafc;
-      --card-bg: #ffffff;
+      --card-bg: #fff;
       --page-width: 860px;
       --text: #1e293b;
       --text-muted: #64748b;
       --line: #e2e8f0;
-      
-      /* Primary Theme Blues */
       --hero-start: #1b3565;
       --hero-end: #14274c;
       --accent-blue: #1e40af;
       --accent-blue-bar: #2563eb;
       --accent-blue-light: #eff6ff;
-      
-      /* Dark Terminal Card Colors */
       --terminal-bg: #111827;
       --terminal-surface: #1e293b;
       --terminal-border: #334155;
       --terminal-green: #4ade80;
-      --terminal-green-dim: #22c55e;
-      
-      /* Button Gradient */
-      --btn-grad: linear-gradient(135deg, #5b5fc7 0%, #7e57c2 100%);
-      --btn-grad-hover: linear-gradient(135deg, #4f53b8 0%, #6e48b0 100%);
-      --btn-shadow: 0 4px 14px rgba(107, 92, 231, 0.38);
-
-      /* Typography */
       --font-serif: "Merriweather", "Georgia", serif;
       --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       --font-mono: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
@@ -67,439 +44,142 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      background-color: var(--bg);
+      background: var(--bg);
       color: var(--text);
       font-family: var(--font-serif);
       font-size: 17px;
       line-height: 1.75;
-      text-rendering: optimizeLegibility;
       -webkit-font-smoothing: antialiased;
     }
 
-    /* Hero Banner Header (Matching screenshot exactly) */
+    /* Hero */
     .hero-banner {
-      background: linear-gradient(180deg, var(--hero-start) 0%, var(--hero-end) 100%);
-      color: #ffffff;
+      background: linear-gradient(180deg, var(--hero-start), var(--hero-end));
+      color: #fff;
       padding: 4.5rem 1.5rem 3.5rem;
       text-align: center;
-      box-shadow: 0 4px 20px rgba(15, 23, 42, 0.15);
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 4px 20px rgba(15, 23, 42, .15);
     }
-
-    .hero-inner {
-      max-width: var(--page-width);
-      margin: 0 auto;
-    }
-
-    .hero-title {
-      font-family: var(--font-serif);
-      font-size: 2.45rem;
-      font-weight: 400;
-      letter-spacing: -0.015em;
-      line-height: 1.25;
-      margin-bottom: 0.85rem;
-      color: #ffffff;
-    }
-
-    .hero-subtitle {
-      font-family: var(--font-serif);
-      font-size: 1.15rem;
-      font-style: italic;
-      color: #cbd5e1;
-      font-weight: 300;
-      margin-bottom: 1.75rem;
-      letter-spacing: 0.01em;
-    }
-
+    .hero-inner { max-width: var(--page-width); margin: 0 auto; }
+    .hero-title { font-size: 2.45rem; font-weight: 400; letter-spacing: -.015em; line-height: 1.25; margin-bottom: .85rem; }
+    .hero-subtitle { font-size: 1.15rem; font-style: italic; color: #cbd5e1; font-weight: 300; margin-bottom: 1.75rem; }
     .hero-meta {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 1.5rem;
-      font-family: var(--font-mono);
-      font-size: 0.8rem;
-      color: #93c5fd;
-      padding-top: 1rem;
-      border-top: 1px solid rgba(255, 255, 255, 0.15);
+      display: flex; flex-wrap: wrap; justify-content: center; gap: 1.5rem;
+      font-family: var(--font-mono); font-size: .8rem; color: #93c5fd;
+      padding-top: 1rem; border-top: 1px solid rgba(255, 255, 255, .15);
     }
+    .hero-meta span::before { content: "▪ "; color: #60a5fa; }
 
-    .hero-meta span::before {
-      content: "▪ ";
-      color: #60a5fa;
-    }
-
-    /* Content Area */
+    /* Content */
     .content-container {
       max-width: var(--page-width);
       margin: 0 auto;
       padding: 3rem 1.5rem 7rem;
       background: var(--card-bg);
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
       border-left: 1px solid var(--line);
       border-right: 1px solid var(--line);
     }
 
-    /* Headings with screenshot's signature blue vertical bar */
     h2 {
-      font-family: var(--font-serif);
-      font-size: 1.5rem;
-      font-weight: 700;
-      color: #1e3a8a;
-      margin: 3.5rem 0 1.25rem;
-      padding-left: 0.85rem;
+      font-size: 1.5rem; font-weight: 700; color: #1e3a8a;
+      margin: 3.5rem 0 1.25rem; padding-left: .85rem;
       border-left: 4.5px solid var(--accent-blue-bar);
       line-height: 1.3;
-      letter-spacing: -0.01em;
     }
-
-    h3 {
-      font-family: var(--font-sans);
-      font-size: 1.18rem;
-      font-weight: 600;
-      margin: 2.2rem 0 0.75rem;
-      color: #0f172a;
-    }
-
-    h4 {
-      font-family: var(--font-sans);
-      font-size: 0.92rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.07em;
-      color: var(--accent-blue);
-      margin: 1.5rem 0 0.5rem;
-    }
-
+    h3 { font-family: var(--font-sans); font-size: 1.18rem; font-weight: 600; margin: 2.2rem 0 .75rem; color: #0f172a; }
     p { margin-bottom: 1.3rem; }
-
-    ul, ol {
-      margin: 0 0 1.4rem 1.7rem;
-    }
-
-    li { margin-bottom: 0.45rem; }
-
+    ul, ol { margin: 0 0 1.4rem 1.7rem; }
+    li { margin-bottom: .45rem; }
     strong { font-weight: 700; color: #0f172a; }
-    em { font-style: italic; }
 
     code {
-      font-family: var(--font-mono);
-      font-size: 0.86em;
-      background: #f1f5f9;
-      border: 1px solid #cbd5e1;
-      border-radius: 4px;
-      padding: 0.15em 0.35em;
-      color: #0f172a;
+      font-family: var(--font-mono); font-size: .86em;
+      background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 4px;
+      padding: .15em .35em; color: #0f172a;
     }
-
     pre {
-      background: var(--terminal-bg);
-      border: 1px solid var(--terminal-border);
-      border-radius: 8px;
-      padding: 1.15rem 1.25rem;
-      overflow-x: auto;
-      font-family: var(--font-mono);
-      font-size: 0.84rem;
-      line-height: 1.55;
-      margin: 1.4rem 0 1.8rem;
-      color: #e2e8f0;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      background: var(--terminal-bg); border: 1px solid var(--terminal-border);
+      border-radius: 8px; padding: 1.15rem 1.25rem; overflow-x: auto;
+      font-family: var(--font-mono); font-size: .84rem; line-height: 1.55;
+      margin: 1.4rem 0 1.8rem; color: #e2e8f0;
     }
+    pre code { background: none; border: none; padding: 0; font-size: inherit; color: inherit; }
 
-    pre code {
-      background: none;
-      border: none;
-      padding: 0;
-      font-size: inherit;
-      color: inherit;
-    }
-
-    /* Callout Cards */
-    .callout {
-      border: 1px solid var(--line);
-      border-radius: 6px;
-      padding: 1.1rem 1.35rem;
-      margin: 1.7rem 0 2.1rem;
-      font-size: 0.94rem;
-      background: #f8fafc;
-    }
-
-    .callout-title {
-      font-family: var(--font-sans);
-      font-weight: 700;
-      font-size: 0.78rem;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      margin-bottom: 0.45rem;
-      display: flex;
-      align-items: center;
-      gap: 0.4rem;
-    }
-
-    .callout-math {
-      background: var(--accent-blue-light);
-      border-color: #bfdbfe;
-      border-left: 4.5px solid var(--accent-blue-bar);
-    }
+    /* Callouts */
+    .callout { border: 1px solid var(--line); border-radius: 6px; padding: 1.1rem 1.35rem; margin: 1.7rem 0 2.1rem; font-size: .94rem; background: #f8fafc; }
+    .callout-title { font-family: var(--font-sans); font-weight: 700; font-size: .78rem; text-transform: uppercase; letter-spacing: .08em; margin-bottom: .45rem; }
+    .callout-math { background: var(--accent-blue-light); border-color: #bfdbfe; border-left: 4.5px solid var(--accent-blue-bar); }
     .callout-math .callout-title { color: var(--accent-blue); }
-
-    .callout-impl {
-      background: #f1f5f9;
-      border-color: #cbd5e1;
-      border-left: 4.5px solid #334155;
-    }
+    .callout-impl { background: #f1f5f9; border-color: #cbd5e1; border-left: 4.5px solid #334155; }
     .callout-impl .callout-title { color: #1e293b; }
-
-    .callout-source {
-      background: #f0fdf4;
-      border-color: #bbf7d0;
-      border-left: 4.5px solid #16a34a;
-    }
+    .callout-source { background: #f0fdf4; border-color: #bbf7d0; border-left: 4.5px solid #16a34a; }
     .callout-source .callout-title { color: #15803d; }
 
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-family: var(--font-sans);
-      font-size: 0.88rem;
-      margin: 1.6rem 0 2.2rem;
-    }
+    /* Tables */
+    table { width: 100%; border-collapse: collapse; font-family: var(--font-sans); font-size: .88rem; margin: 1.6rem 0 2.2rem; }
+    th, td { border: 1px solid var(--line); padding: .65rem .85rem; text-align: left; }
+    th { background: #f1f5f9; color: #0f172a; font-weight: 600; border-bottom: 2px solid var(--accent-blue); }
 
-    th, td {
-      border: 1px solid var(--line);
-      padding: 0.65rem 0.85rem;
-      text-align: left;
-    }
+    hr { border: 0; border-top: 1px solid var(--line); margin: 4rem 0; }
 
-    th {
-      background: #f1f5f9;
-      color: #0f172a;
-      font-weight: 600;
-      border-bottom: 2px solid var(--accent-blue);
-    }
-
-    hr {
-      border: 0;
-      border-top: 1px solid var(--line);
-      margin: 4rem 0;
-    }
-
-    /* Dark Interactive Instrument Panels (Matching Screenshot) */
+    /* Dark widget panels */
     .widget-panel {
-      background: var(--terminal-bg);
-      border: 1px solid var(--terminal-border);
-      border-radius: 12px;
-      padding: 1.5rem;
-      margin: 2.2rem 0;
-      color: #f8fafc;
-      box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.25);
+      background: var(--terminal-bg); border: 1px solid var(--terminal-border);
+      border-radius: 12px; padding: 1.5rem; margin: 2.2rem 0; color: #f8fafc;
+      box-shadow: 0 10px 25px -5px rgba(15, 23, 42, .25);
     }
-
     .widget-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 1.1rem;
-      padding-bottom: 0.65rem;
-      border-bottom: 1px solid var(--terminal-border);
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 1.1rem; padding-bottom: .65rem; border-bottom: 1px solid var(--terminal-border);
     }
-
-    .widget-title {
-      font-family: var(--font-sans);
-      font-weight: 600;
-      font-size: 1rem;
-      color: #f1f5f9;
-    }
-
+    .widget-title { font-family: var(--font-sans); font-weight: 600; font-size: 1rem; color: #f1f5f9; }
     .widget-badge {
-      font-family: var(--font-mono);
-      font-size: 0.72rem;
-      padding: 0.2rem 0.5rem;
-      border-radius: 9999px;
-      background: rgba(59, 130, 246, 0.2);
-      color: #93c5fd;
-      border: 1px solid rgba(59, 130, 246, 0.4);
-      text-transform: uppercase;
-      font-weight: 500;
+      font-family: var(--font-mono); font-size: .72rem; padding: .2rem .5rem; border-radius: 9999px;
+      background: rgba(59, 130, 246, .2); color: #93c5fd; border: 1px solid rgba(59, 130, 246, .4);
+      text-transform: uppercase; font-weight: 500;
     }
-
-    .widget-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-      gap: 0.85rem;
-      margin-bottom: 1.1rem;
-    }
-
-    .widget-field {
-      display: flex;
-      flex-direction: column;
-      gap: 0.35rem;
-    }
-
-    .widget-field label {
-      font-family: var(--font-mono);
-      font-size: 0.74rem;
-      color: #94a3b8;
-    }
-
+    .widget-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: .85rem; margin-bottom: 1.1rem; }
+    .widget-field { display: flex; flex-direction: column; gap: .35rem; }
+    .widget-field label { font-family: var(--font-mono); font-size: .74rem; color: #94a3b8; }
     .widget-field input, .widget-field select {
-      padding: 0.45rem 0.6rem;
-      font-family: var(--font-mono);
-      font-size: 0.86rem;
-      border: 1px solid var(--terminal-border);
-      border-radius: 6px;
-      background: var(--terminal-surface);
-      color: #ffffff;
-      transition: border-color 0.15s;
+      padding: .45rem .6rem; font-family: var(--font-mono); font-size: .86rem;
+      border: 1px solid var(--terminal-border); border-radius: 6px;
+      background: var(--terminal-surface); color: #fff;
     }
-
-    .widget-field input:focus, .widget-field select:focus {
-      outline: none;
-      border-color: #60a5fa;
-      box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.25);
-    }
-
+    .widget-field input:focus, .widget-field select:focus { outline: none; border-color: #60a5fa; box-shadow: 0 0 0 2px rgba(96, 165, 250, .25); }
     .widget-output {
-      background: #090d16;
-      border: 1px solid var(--terminal-border);
-      border-left: 3.5px solid var(--terminal-green);
-      border-radius: 6px;
-      padding: 0.95rem;
-      font-family: var(--font-mono);
-      font-size: 0.83rem;
-      line-height: 1.55;
-      white-space: pre-wrap;
-      overflow-x: auto;
-      color: var(--terminal-green);
+      background: #090d16; border: 1px solid var(--terminal-border); border-left: 3.5px solid var(--terminal-green);
+      border-radius: 6px; padding: .95rem; font-family: var(--font-mono); font-size: .83rem;
+      line-height: 1.55; white-space: pre-wrap; overflow-x: auto; color: var(--terminal-green);
     }
 
-    /* Canvas Layout & Signature Violet Pill Button */
-    .canvas-layout {
-      display: flex;
-      gap: 1.5rem;
-      align-items: center;
-      justify-content: center;
-      flex-direction: column;
-      margin-top: 0.85rem;
-    }
+    /* Static digit demo (Part XXVIII) */
+    .demo-row { display: flex; gap: 1.5rem; align-items: center; justify-content: center; flex-wrap: wrap; }
+    .demo-row svg { border: 2px solid var(--terminal-border); border-radius: 8px; }
+    .bar-chart { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 200px; max-width: 280px; }
+    .bar-row { display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: .74rem; color: #cbd5e1; }
+    .bar-row span:first-child { width: 14px; }
+    .bar-row span:last-child { width: 44px; text-align: right; }
+    .bar-outer { flex: 1; height: 9px; background: var(--terminal-surface); border-radius: 9999px; overflow: hidden; }
+    .bar-fill { height: 100%; background: linear-gradient(90deg, #3b82f6, #60a5fa); }
 
-    #drawingCanvas {
-      background: #090d16;
-      border: 2px solid var(--terminal-border);
-      border-radius: 8px;
-      cursor: crosshair;
-      image-rendering: pixelated;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
-    }
-
-    .canvas-controls {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 0.75rem;
-      width: 100%;
-      max-width: 320px;
-    }
-
-    /* Signature Violet/Purple Pill Button from screenshot */
-    button, .pill-btn {
-      padding: 0.55rem 1.6rem;
-      font-family: var(--font-sans);
-      font-size: 0.88rem;
-      font-weight: 500;
-      border: none;
-      background: var(--btn-grad);
-      color: #ffffff;
-      border-radius: 9999px;
-      cursor: pointer;
-      box-shadow: var(--btn-shadow);
-      transition: all 0.2s ease-in-out;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    button:hover, .pill-btn:hover {
-      background: var(--btn-grad-hover);
-      transform: translateY(-1px);
-      box-shadow: 0 6px 18px rgba(107, 92, 231, 0.5);
-    }
-
-    button:active, .pill-btn:active {
-      transform: translateY(0);
-    }
-
-    .bar-chart {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      width: 100%;
-      margin-top: 0.5rem;
-    }
-
-    .bar-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-family: var(--font-mono);
-      font-size: 0.74rem;
-      color: #cbd5e1;
-    }
-
-    .bar-outer {
-      flex: 1;
-      height: 9px;
-      background: var(--terminal-surface);
-      border-radius: 9999px;
-      overflow: hidden;
-    }
-
-    .bar-fill {
-      height: 100%;
-      background: linear-gradient(90deg, #3b82f6, #60a5fa);
-      width: 0%;
-      transition: width 0.12s ease-out;
-    }
-
+    /* Table of contents */
     .toc {
-      background: #f8fafc;
-      border: 1px solid var(--line);
-      border-left: 4.5px solid var(--accent-blue-bar);
-      border-radius: 6px;
-      padding: 1.35rem 1.6rem;
-      margin: 2.5rem 0 3.5rem;
-      font-family: var(--font-sans);
-      font-size: 0.88rem;
+      background: #f8fafc; border: 1px solid var(--line); border-left: 4.5px solid var(--accent-blue-bar);
+      border-radius: 6px; padding: 1.35rem 1.6rem; margin: 2.5rem 0 3.5rem;
+      font-family: var(--font-sans); font-size: .88rem;
     }
-
-    .toc-title {
-      font-weight: 700;
-      font-size: 0.82rem;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: var(--accent-blue);
-      margin-bottom: 0.85rem;
-    }
-
-    .toc ol {
-      margin-bottom: 0;
-      padding-left: 1.3rem;
-    }
-
-    .toc li { margin-bottom: 0.35rem; }
+    .toc-title { font-weight: 700; font-size: .82rem; text-transform: uppercase; letter-spacing: .08em; color: var(--accent-blue); margin-bottom: .85rem; }
+    .toc ol { margin-bottom: 0; padding-left: 1.3rem; }
+    .toc li { margin-bottom: .35rem; }
     .toc a { color: var(--text); text-decoration: none; }
     .toc a:hover { text-decoration: underline; color: var(--accent-blue-bar); }
 
-    footer {
-      font-size: 0.86rem;
-      color: var(--text-muted);
-      text-align: center;
-      margin-top: 3.5rem;
-    }
+    footer { font-size: .86rem; color: var(--text-muted); text-align: center; margin-top: 3.5rem; }
   </style>
 </head>
 <body>
 
-  <!-- HERO BANNER (Matches screenshot style) -->
   <div class="hero-banner">
     <div class="hero-inner">
       <h1 class="hero-title">The NeuralEngine Architecture &amp; Mathematics</h1>
@@ -533,7 +213,6 @@
       The C++ snippets are not all copied from the project's source files. Where an exact implementation was available in the Studio code, that will be identified. Elsewhere, code is a reference implementation of the mathematics, not a claim that every line matches your library exactly.
     </p>
 
-    <!-- TABLE OF CONTENTS -->
     <div class="toc">
       <div class="toc-title">Table of Contents</div>
       <ol>
@@ -566,9 +245,9 @@
         <li><a href="#part-27">Part XXVII — A compact formula reference</a></li>
         <li><a href="#part-28">Part XXVIII — Interactive learning suite &amp; compilation guide</a></li>
         <li><a href="#part-29">Part XXIX — Batch Training and Batch Normalisation</a></li>
-<li><a href="#part-30">Part XXX — BatchNorm: Deriving the Backward Pass</a></li>
-<li><a href="#part-31">Part XXXI — Gradient Scaling and Mean Batch Loss</a></li>
-<li><a href="#part-32">Part XXXII — Training Stability, Learning Rates and BatchNorm</a></li>
+        <li><a href="#part-30">Part XXX — BatchNorm: Deriving the Backward Pass</a></li>
+        <li><a href="#part-31">Part XXXI — Gradient Scaling and Mean Batch Loss</a></li>
+        <li><a href="#part-32">Part XXXII — Training Stability, Learning Rates and BatchNorm</a></li>
       </ol>
     </div>
 
@@ -601,9 +280,7 @@
 
       <h3>2. The experiment</h3>
       <p>The architecture used in the Studio configuration is:</p>
-      \[
-      784 \rightarrow 512 \rightarrow 256 \rightarrow 128 \rightarrow 64 \rightarrow 10
-      \]
+      \[ 784 \rightarrow 512 \rightarrow 256 \rightarrow 128 \rightarrow 64 \rightarrow 10 \]
       <p>
         This is a <strong>fully connected feed-forward network</strong>, not a convolutional neural network.
       </p>
@@ -631,9 +308,7 @@
       <p>
         Before considering layers of neurons, consider the simplest possible learning problem. Suppose we want a model to predict a value \(y\) from an input \(x\). We use the model:
       </p>
-      \[
-      \hat y = wx
-      \]
+      \[ \hat y = wx \]
       <p>where:</p>
       <ul>
         <li>\(x\) is the input.</li>
@@ -644,31 +319,21 @@
       <p>
         Imagine that \(x=3\) and \(y=12\), and initially \(w=2\). The model predicts:
       </p>
-      \[
-      \hat y = wx = 2(3) = 6.
-      \]
+      \[ \hat y = wx = 2(3) = 6. \]
       <p>The prediction is too small. How should we change \(w\)? We need a numerical measure of how wrong the model is.</p>
 
       <h3>4. Loss: measuring prediction error</h3>
       <p>
         A <strong>loss function</strong> maps a prediction and its target to a number representing the error for that example. A simple choice for regression is squared error:
       </p>
-      \[
-      L = (\hat y - y)^2.
-      \]
+      \[ L = (\hat y - y)^2. \]
       <p>With our example:</p>
-      \[
-      L = (6 - 12)^2 = (-6)^2 = 36.
-      \]
+      \[ L = (6 - 12)^2 = (-6)^2 = 36. \]
       <p>A smaller loss is better, provided that the loss measures the behaviour we actually want.</p>
       <p>For differentiation, it is common to include a factor of one-half:</p>
-      \[
-      L = \frac{1}{2}(\hat y - y)^2.
-      \]
+      \[ L = \frac{1}{2}(\hat y - y)^2. \]
       <p>The numerical loss becomes:</p>
-      \[
-      L = \frac{1}{2}(6 - 12)^2 = \frac{1}{2}(36) = 18.
-      \]
+      \[ L = \frac{1}{2}(6 - 12)^2 = \frac{1}{2}(36) = 18. \]
       <p>
         The factor \(\frac{1}{2}\) does not change the location of the minimum. Its main benefit is that the factor of \(2\) produced by differentiating a square cancels with the \(\frac{1}{2}\).
       </p>
@@ -680,39 +345,25 @@
       <p>
         A derivative measures how a function changes when its input changes by a small amount. For a differentiable function \(f(w)\), the derivative at \(w\) is:
       </p>
-      \[
-      f'(w) = \lim_{h\to0}\frac{f(w+h) - f(w)}{h}.
-      \]
+      \[ f'(w) = \lim_{h\to0}\frac{f(w+h) - f(w)}{h}. \]
       <p>
         The numerator is the change in the function value. The denominator is the change in the input. The limit asks what ratio emerges as the input change approaches zero.
       </p>
       <p>For the model above:</p>
-      \[
-      L(w) = \frac{1}{2}(wx - y)^2.
-      \]
+      \[ L(w) = \frac{1}{2}(wx - y)^2. \]
       <p>We want to know how the loss changes when we change \(w\). That is the derivative \(\frac{dL}{dw}\). Applying the chain rule:</p>
-      \[
-      \frac{dL}{dw} = \frac{dL}{d\hat y}\frac{d\hat y}{dw}.
-      \]
+      \[ \frac{dL}{dw} = \frac{dL}{d\hat y}\frac{d\hat y}{dw}. \]
       <p>First, \(L = \frac{1}{2}(\hat y - y)^2\), so:</p>
-      \[
-      \frac{dL}{d\hat y} = \hat y - y.
-      \]
+      \[ \frac{dL}{d\hat y} = \hat y - y. \]
       <p>Next, \(\hat y = wx\), so, treating \(x\) as a constant:</p>
-      \[
-      \frac{d\hat y}{dw} = x.
-      \]
+      \[ \frac{d\hat y}{dw} = x. \]
       <p>Combining the results gives:</p>
       <div class="callout callout-math">
         <div class="callout-title">Mathematical Result: Scalar Weight Gradient</div>
-        \[
-        \boxed{\frac{dL}{dw} = (\hat y - y)x}
-        \]
+        \[ \boxed{\frac{dL}{dw} = (\hat y - y)x} \]
       </div>
       <p>This is the gradient of the loss with respect to the weight. For our numerical example:</p>
-      \[
-      \frac{dL}{dw} = (6 - 12)(3) = (-6)(3) = -18.
-      \]
+      \[ \frac{dL}{dw} = (6 - 12)(3) = (-6)(3) = -18. \]
       <p>
         The gradient is negative. A small increase in \(w\) would decrease the loss locally. A small decrease in \(w\) would increase it locally.
       </p>
@@ -724,23 +375,15 @@
       <p>Gradient descent updates a parameter in the opposite direction to its gradient:</p>
       <div class="callout callout-math">
         <div class="callout-title">Mathematical Result: Gradient Descent Parameter Update</div>
-        \[
-        \boxed{w_{\text{new}} = w_{\text{old}} - \eta\frac{dL}{dw}}
-        \]
+        \[ \boxed{w_{\text{new}} = w_{\text{old}} - \eta\frac{dL}{dw}} \]
       </div>
       <p>where \(\eta\) is the learning rate. The learning rate controls the size of the update.</p>
       <p>Take our values: \(w_{\text{old}} = 2\), \(\frac{dL}{dw} = -18\), and \(\eta = 0.1\). Then:</p>
-      \[
-      w_{\text{new}} = 2 - 0.1(-18) = 2 + 1.8 = 3.8.
-      \]
+      \[ w_{\text{new}} = 2 - 0.1(-18) = 2 + 1.8 = 3.8. \]
       <p>The weight increased, as expected from the negative gradient. The new prediction is:</p>
-      \[
-      \hat y = 3.8(3) = 11.4.
-      \]
+      \[ \hat y = 3.8(3) = 11.4. \]
       <p>The new squared-error loss is:</p>
-      \[
-      L = \frac{1}{2}(11.4 - 12)^2 = \frac{1}{2}(-0.6)^2 = \frac{1}{2}(0.36) = 0.18.
-      \]
+      \[ L = \frac{1}{2}(11.4 - 12)^2 = \frac{1}{2}(-0.6)^2 = \frac{1}{2}(0.36) = 0.18. \]
       <p>The loss fell from \(18\) to \(0.18\). This example captures the essential mechanism behind training:</p>
       <ol>
         <li>Make a prediction.</li>
@@ -751,7 +394,7 @@
       </ol>
       <p>A neural network performs the same conceptual sequence, but with many layers and often hundreds of thousands or millions of parameters.</p>
 
-      <!-- LIVE WIDGET 1 -->
+      <!-- LAB 1 -->
       <div class="widget-panel">
         <div class="widget-header">
           <span class="widget-title">Interactive Laboratory 1: Single Parameter Gradient Descent</span>
@@ -780,57 +423,29 @@
 
       <h3>7. A second worked example: calculate every parameter update</h3>
       <p>Consider a single linear neuron with two input values:</p>
-      \[
-      x = \begin{bmatrix} 2 \\ -1 \end{bmatrix}
-      \]
+      \[ x = \begin{bmatrix} 2 \\ -1 \end{bmatrix} \]
       <p>and two weights:</p>
-      \[
-      w = \begin{bmatrix} 0.5 \\ -0.25 \end{bmatrix}.
-      \]
+      \[ w = \begin{bmatrix} 0.5 \\ -0.25 \end{bmatrix}. \]
       <p>Let the bias be \(b = 0.1\). The output is:</p>
-      \[
-      \hat y = w_1 x_1 + w_2 x_2 + b.
-      \]
+      \[ \hat y = w_1 x_1 + w_2 x_2 + b. \]
       <p>Substitute the values:</p>
-      \[
-      \hat y = 0.5(2) + (-0.25)(-1) + 0.1 = 1 + 0.25 + 0.1 = 1.35.
-      \]
+      \[ \hat y = 0.5(2) + (-0.25)(-1) + 0.1 = 1 + 0.25 + 0.1 = 1.35. \]
       <p>Let the target be \(y = 2\), and use the half-squared-error loss:</p>
-      \[
-      L = \frac{1}{2}(\hat y - y)^2.
-      \]
+      \[ L = \frac{1}{2}(\hat y - y)^2. \]
       <p>The error is:</p>
-      \[
-      \hat y - y = 1.35 - 2 = -0.65.
-      \]
+      \[ \hat y - y = 1.35 - 2 = -0.65. \]
       <p>Thus:</p>
-      \[
-      L = \frac{1}{2}(-0.65)^2 = 0.21125.
-      \]
+      \[ L = \frac{1}{2}(-0.65)^2 = 0.21125. \]
       <p>Now differentiate with respect to each parameter. Because:</p>
-      \[
-      \frac{\partial \hat y}{\partial w_1} = x_1, \qquad \frac{\partial \hat y}{\partial w_2} = x_2, \qquad \frac{\partial \hat y}{\partial b} = 1,
-      \]
+      \[ \frac{\partial \hat y}{\partial w_1} = x_1, \qquad \frac{\partial \hat y}{\partial w_2} = x_2, \qquad \frac{\partial \hat y}{\partial b} = 1, \]
       <p>the gradients are:</p>
-      \[
-      \frac{\partial L}{\partial w_1} = (\hat y - y)x_1 = (-0.65)(2) = -1.3,
-      \]
-      \[
-      \frac{\partial L}{\partial w_2} = (\hat y - y)x_2 = (-0.65)(-1) = 0.65,
-      \]
-      \[
-      \frac{\partial L}{\partial b} = \hat y - y = -0.65.
-      \]
+      \[ \frac{\partial L}{\partial w_1} = (\hat y - y)x_1 = (-0.65)(2) = -1.3, \]
+      \[ \frac{\partial L}{\partial w_2} = (\hat y - y)x_2 = (-0.65)(-1) = 0.65, \]
+      \[ \frac{\partial L}{\partial b} = \hat y - y = -0.65. \]
       <p>With learning rate \(\eta = 0.1\):</p>
-      \[
-      w_1' = 0.5 - 0.1(-1.3) = 0.5 + 0.13 = 0.63,
-      \]
-      \[
-      w_2' = -0.25 - 0.1(0.65) = -0.25 - 0.065 = -0.315,
-      \]
-      \[
-      b' = 0.1 - 0.1(-0.65) = 0.1 + 0.065 = 0.165.
-      \]
+      \[ w_1' = 0.5 - 0.1(-1.3) = 0.5 + 0.13 = 0.63, \]
+      \[ w_2' = -0.25 - 0.1(0.65) = -0.25 - 0.065 = -0.315, \]
+      \[ b' = 0.1 - 0.1(-0.65) = 0.1 + 0.065 = 0.165. \]
       <p>The model has updated all three parameters. Each one received a different gradient because each parameter influences the output differently.</p>
       <p>This small example introduces several ideas that remain true in a dense neural-network layer:</p>
       <ul>
@@ -851,61 +466,38 @@
         A neural network processes many input features at once. For an MNIST image, the input consists of 784 pixel values. Writing 784 separate scalar equations would be cumbersome and would obscure the fact that the calculations follow the same pattern.
       </p>
       <p>Instead, represent the input as a vector:</p>
-      \[
-      \mathbf{x} = \begin{bmatrix} x_1 \\ x_2 \\ \vdots \\ x_n \end{bmatrix}, \qquad
-      \mathbf{w} = \begin{bmatrix} w_1 \\ w_2 \\ \vdots \\ w_n \end{bmatrix}.
-      \]
+      \[ \mathbf{x} = \begin{bmatrix} x_1 \\ x_2 \\ \vdots \\ x_n \end{bmatrix}, \qquad \mathbf{w} = \begin{bmatrix} w_1 \\ w_2 \\ \vdots \\ w_n \end{bmatrix}. \]
       <p>The weighted sum can be written using a dot product:</p>
-      \[
-      z = \mathbf{w}^T\mathbf{x} + b = w_1 x_1 + w_2 x_2 + \cdots + w_n x_n + b.
-      \]
+      \[ z = \mathbf{w}^T\mathbf{x} + b = w_1 x_1 + w_2 x_2 + \cdots + w_n x_n + b. \]
       <p>
         The vector notation does not introduce a new mathematical operation. It expresses the same repeated multiplication and addition compactly. A vector of weights contains \(n\) independent trainable parameters, and each has its own partial derivative.
       </p>
 
       <h3>9. From one neuron to several neurons</h3>
       <p>Suppose a layer receives three inputs and produces two outputs:</p>
-      \[
-      \mathbf{x} = \begin{bmatrix} x_1 \\ x_2 \\ x_3 \end{bmatrix}.
-      \]
+      \[ \mathbf{x} = \begin{bmatrix} x_1 \\ x_2 \\ x_3 \end{bmatrix}. \]
       <p>The two neurons each need three weights. Therefore, we can place their weights into a matrix:</p>
-      \[
-      W = \begin{bmatrix} w_{11} & w_{12} & w_{13} \\ w_{21} & w_{22} & w_{23} \end{bmatrix}.
-      \]
+      \[ W = \begin{bmatrix} w_{11} & w_{12} & w_{13} \\ w_{21} & w_{22} & w_{23} \end{bmatrix}. \]
       <p>The first row contains all weights for the first output neuron. The second row contains all weights for the second output neuron. Let \(\mathbf{b} = \begin{bmatrix} b_1 \\ b_2 \end{bmatrix}\). The complete layer calculation becomes:</p>
       <div class="callout callout-math">
         <div class="callout-title">Mathematical Result: Dense Layer Affine Transformation</div>
-        \[
-        \boxed{\mathbf{z} = W\mathbf{x} + \mathbf{b}}
-        \]
+        \[ \boxed{\mathbf{z} = W\mathbf{x} + \mathbf{b}} \]
       </div>
       <p>In general, if a layer has \(n_{\text{in}}\) input features and \(n_{\text{out}}\) output neurons, then:</p>
-      \[
-      W \in \mathbb{R}^{n_{\text{out}}\times n_{\text{in}}}, \qquad \mathbf{x} \in \mathbb{R}^{n_{\text{in}}\times 1}, \qquad \mathbf{b} \in \mathbb{R}^{n_{\text{out}}\times 1}, \qquad \mathbf{z} \in \mathbb{R}^{n_{\text{out}}\times 1}.
-      \]
+      \[ W \in \mathbb{R}^{n_{\text{out}}\times n_{\text{in}}}, \qquad \mathbf{x} \in \mathbb{R}^{n_{\text{in}}\times 1}, \qquad \mathbf{b} \in \mathbb{R}^{n_{\text{out}}\times 1}, \qquad \mathbf{z} \in \mathbb{R}^{n_{\text{out}}\times 1}. \]
       <p>
         The inner dimensions must agree: \((2\times3)(3\times1) = (2\times1)\). A matrix with three columns cannot multiply a vector with four elements in this orientation. That is a dimension mismatch.
       </p>
 
       <h3>10. What matrix multiplication actually does</h3>
       <p>For matrices \(A\) and \(B\), the product \(C = AB\) is defined by:</p>
-      \[
-      C_{ij} = \sum_k A_{ik}B_{kj}.
-      \]
+      \[ C_{ij} = \sum_k A_{ik}B_{kj}. \]
       <p>Each output element is a dot product between a row of \(A\) and a column of \(B\). For example:</p>
-      \[
-      A = \begin{bmatrix} 1 & 2 \\ 3 & 4 \end{bmatrix}, \qquad B = \begin{bmatrix} 5 & 6 \\ 7 & 8 \end{bmatrix}.
-      \]
+      \[ A = \begin{bmatrix} 1 & 2 \\ 3 & 4 \end{bmatrix}, \qquad B = \begin{bmatrix} 5 & 6 \\ 7 & 8 \end{bmatrix}. \]
       <p>Then:</p>
-      \[
-      C_{11} = 1(5) + 2(7) = 19, \qquad C_{12} = 1(6) + 2(8) = 22,
-      \]
-      \[
-      C_{21} = 3(5) + 4(7) = 43, \qquad C_{22} = 3(6) + 4(8) = 50.
-      \]
-      \[
-      AB = \begin{bmatrix} 19 & 22 \\ 43 & 50 \end{bmatrix}.
-      \]
+      \[ C_{11} = 1(5) + 2(7) = 19, \qquad C_{12} = 1(6) + 2(8) = 22, \]
+      \[ C_{21} = 3(5) + 4(7) = 43, \qquad C_{22} = 3(6) + 4(8) = 50. \]
+      \[ AB = \begin{bmatrix} 19 & 22 \\ 43 & 50 \end{bmatrix}. \]
       <p>Nothing more mysterious is happening inside a dense layer. The matrix multiplication computes the weighted sums for all its output neurons.</p>
     </section>
 
@@ -932,9 +524,7 @@
         C++ does not have to store a matrix as a nested structure of separately allocated rows (such as <code>std::vector&lt;std::vector&lt;float&gt;&gt;</code>). A matrix can be represented by a single contiguous array.
       </p>
       <p>For example, the matrix:</p>
-      \[
-      A = \begin{bmatrix} 10 & 20 & 30 \\ 40 & 50 & 60 \end{bmatrix}
-      \]
+      \[ A = \begin{bmatrix} 10 & 20 & 30 \\ 40 & 50 & 60 \end{bmatrix} \]
       <p>can be stored in row-major order as:</p>
       <pre><code>std::vector&lt;float&gt; values{ 10.0F, 20.0F, 30.0F, 40.0F, 50.0F, 60.0F }; // shape {2, 3}</code></pre>
       <p>
@@ -942,27 +532,19 @@
       </p>
       <div class="callout callout-math">
         <div class="callout-title">Mathematical Result: Row-Major 2D Offset</div>
-        \[
-        \boxed{\operatorname{offset}(i,j) = iC + j}
-        \]
+        \[ \boxed{\operatorname{offset}(i,j) = iC + j} \]
       </div>
       <p>For element \((1,2)\), \(\operatorname{offset} = 1(3) + 2 = 5\). <code>values[5]</code> is <code>60.0F</code>.</p>
 
       <h3>13. General row-major indexing</h3>
       <p>For a tensor with shape \([d_0, d_1, \ldots, d_{r-1}]\), the row-major strides are:</p>
-      \[
-      s_k = \prod_{j=k+1}^{r-1} d_j.
-      \]
+      \[ s_k = \prod_{j=k+1}^{r-1} d_j. \]
       <p>The flat offset for index tuple \((i_0, i_1, \ldots, i_{r-1})\) is:</p>
-      \[
-      \operatorname{offset} = \sum_{k=0}^{r-1} i_k s_k.
-      \]
+      \[ \operatorname{offset} = \sum_{k=0}^{r-1} i_k s_k. \]
       <p>For shape \([2, 3, 4]\), strides are \([12, 4, 1]\). Index \((1, 2, 3)\) has offset:</p>
-      \[
-      1(12) + 2(4) + 3(1) = 12 + 8 + 3 = 23.
-      \]
+      \[ 1(12) + 2(4) + 3(1) = 12 + 8 + 3 = 23. \]
 
-      <!-- LIVE WIDGET 2 -->
+      <!-- LAB 2 -->
       <div class="widget-panel">
         <div class="widget-header">
           <span class="widget-title">Interactive Laboratory 2: Row-Major Memory Mapping</span>
@@ -1086,24 +668,12 @@ std::span&lt;const float&gt; data() const;</code></pre>
 
       <h3>17. The affine transformation</h3>
       <p>A dense layer applies a learned linear transformation and adds a bias:</p>
-      \[
-      \boxed{\mathbf{z} = W\mathbf{a} + \mathbf{b}}
-      \]
+      \[ \boxed{\mathbf{z} = W\mathbf{a} + \mathbf{b}} \]
       <p>Consider a 2-input, 2-output layer:</p>
-      \[
-      \mathbf{a} = \begin{bmatrix} 2 \\ 1 \end{bmatrix}, \qquad
-      W = \begin{bmatrix} 0.5 & -0.25 \\ -1 & 0.75 \end{bmatrix}, \qquad
-      \mathbf{b} = \begin{bmatrix} 0.1 \\ 0.2 \end{bmatrix}.
-      \]
-      \[
-      z_1 = 0.5(2) + (-0.25)(1) + 0.1 = 1 - 0.25 + 0.1 = 0.85.
-      \]
-      \[
-      z_2 = (-1)(2) + 0.75(1) + 0.2 = -2 + 0.75 + 0.2 = -1.05.
-      \]
-      \[
-      \mathbf{z} = \begin{bmatrix} 0.85 \\ -1.05 \end{bmatrix}.
-      \]
+      \[ \mathbf{a} = \begin{bmatrix} 2 \\ 1 \end{bmatrix}, \qquad W = \begin{bmatrix} 0.5 & -0.25 \\ -1 & 0.75 \end{bmatrix}, \qquad \mathbf{b} = \begin{bmatrix} 0.1 \\ 0.2 \end{bmatrix}. \]
+      \[ z_1 = 0.5(2) + (-0.25)(1) + 0.1 = 1 - 0.25 + 0.1 = 0.85. \]
+      \[ z_2 = (-1)(2) + 0.75(1) + 0.2 = -2 + 0.75 + 0.2 = -1.05. \]
+      \[ \mathbf{z} = \begin{bmatrix} 0.85 \\ -1.05 \end{bmatrix}. \]
 
       <h3>18. Why do we need a bias?</h3>
       <p>
@@ -1113,9 +683,7 @@ std::span&lt;const float&gt; data() const;</code></pre>
       <h3>19. The number of parameters in a dense layer</h3>
       <div class="callout callout-math">
         <div class="callout-title">Mathematical Result: Dense Layer Parameter Count</div>
-        \[
-        \boxed{N_{\text{parameters}} = n_{\text{in}}n_{\text{out}} + n_{\text{out}} = (n_{\text{in}} + 1)n_{\text{out}}}
-        \]
+        \[ \boxed{N_{\text{parameters}} = n_{\text{in}}n_{\text{out}} + n_{\text{out}} = (n_{\text{in}} + 1)n_{\text{out}}} \]
       </div>
       <p>For layer 1 (\(784 \rightarrow 512\)): \(784(512) + 512 = 401,920\) parameters.</p>
 
@@ -1138,12 +706,8 @@ std::span&lt;const float&gt; data() const;</code></pre>
 
       <h3>21. Stacking linear layers is still linear</h3>
       <p>Suppose we stack two affine layers with no activation:</p>
-      \[
-      \mathbf{z}_1 = W_1\mathbf{x} + \mathbf{b}_1, \qquad \mathbf{z}_2 = W_2\mathbf{z}_1 + \mathbf{b}_2.
-      \]
-      \[
-      \mathbf{z}_2 = W_2(W_1\mathbf{x} + \mathbf{b}_1) + \mathbf{b}_2 = (W_2W_1)\mathbf{x} + (W_2\mathbf{b}_1 + \mathbf{b}_2) = W'\mathbf{x} + \mathbf{b}'.
-      \]
+      \[ \mathbf{z}_1 = W_1\mathbf{x} + \mathbf{b}_1, \qquad \mathbf{z}_2 = W_2\mathbf{z}_1 + \mathbf{b}_2. \]
+      \[ \mathbf{z}_2 = W_2(W_1\mathbf{x} + \mathbf{b}_1) + \mathbf{b}_2 = (W_2W_1)\mathbf{x} + (W_2\mathbf{b}_1 + \mathbf{b}_2) = W'\mathbf{x} + \mathbf{b}'. \]
       <p>
         This collapses into a single affine transformation. Depth alone does not provide representational power without nonlinearity. <strong>Activation functions provide the nonlinearity.</strong>
       </p>
@@ -1151,20 +715,14 @@ std::span&lt;const float&gt; data() const;</code></pre>
       <h3>22. ReLU</h3>
       <div class="callout callout-math">
         <div class="callout-title">Mathematical Result: Rectified Linear Unit</div>
-        \[
-        \boxed{\operatorname{ReLU}(z) = \max(0, z)}
-        \]
+        \[ \boxed{\operatorname{ReLU}(z) = \max(0, z)} \]
       </div>
       <p>Applied to \(\begin{bmatrix} 0.85 \\ -1.05 \end{bmatrix}\), it yields \(\begin{bmatrix} 0.85 \\ 0 \end{bmatrix}\).</p>
 
       <h3>23. The derivative of ReLU</h3>
-      \[
-      \operatorname{ReLU}'(z) = \begin{cases} 1, & z > 0, \\ 0, & z < 0. \end{cases}
-      \]
+      \[ \operatorname{ReLU}'(z) = \begin{cases} 1, & z > 0, \\ 0, & z < 0. \end{cases} \]
       <p>At \(z=0\), implementations conventionally choose subgradient 0. The incoming gradient \(g\) is gated elementwise:</p>
-      \[
-      g_{\text{input}} = g_{\text{output}} \operatorname{ReLU}'(z).
-      \]
+      \[ g_{\text{input}} = g_{\text{output}} \operatorname{ReLU}'(z). \]
 
       <h3>24. Other activation functions</h3>
       <ul>
@@ -1179,13 +737,9 @@ std::span&lt;const float&gt; data() const;</code></pre>
 
       <h3>25. The layer-by-layer equations</h3>
       <p>Let \(a^{(0)} = x\). For hidden layers \(l=1\dots4\):</p>
-      \[
-      z^{(l)} = W^{(l)}a^{(l-1)} + b^{(l)}, \qquad a^{(l)} = \operatorname{ReLU}(z^{(l)}).
-      \]
+      \[ z^{(l)} = W^{(l)}a^{(l-1)} + b^{(l)}, \qquad a^{(l)} = \operatorname{ReLU}(z^{(l)}). \]
       <p>For the final layer (\(L=5\)):</p>
-      \[
-      z^{(L)} = W^{(L)}a^{(L-1)} + b^{(L)}.
-      \]
+      \[ z^{(L)} = W^{(L)}a^{(L-1)} + b^{(L)}. \]
       <p>The final dense layer produces unnormalized real-valued <strong>logits</strong> (no ReLU).</p>
 
       <h3>26. Shapes of every layer</h3>
@@ -1207,24 +761,12 @@ std::span&lt;const float&gt; data() const;</code></pre>
       </table>
 
       <h3>27. How many trainable parameters?</h3>
-      \[
-      N_1 = 784(512) + 512 = 401,920
-      \]
-      \[
-      N_2 = 512(256) + 256 = 131,328
-      \]
-      \[
-      N_3 = 256(128) + 128 = 32,896
-      \]
-      \[
-      N_4 = 128(64) + 64 = 8,256
-      \]
-      \[
-      N_5 = 64(10) + 10 = 650
-      \]
-      \[
-      N_{\text{total}} = 401,920 + 131,328 + 32,896 + 8,256 + 650 = \mathbf{575,050}.
-      \]
+      \[ N_1 = 784(512) + 512 = 401,920 \]
+      \[ N_2 = 512(256) + 256 = 131,328 \]
+      \[ N_3 = 256(128) + 128 = 32,896 \]
+      \[ N_4 = 128(64) + 64 = 8,256 \]
+      \[ N_5 = 64(10) + 10 = 650 \]
+      \[ N_{\text{total}} = 401,920 + 131,328 + 32,896 + 8,256 + 650 = \mathbf{575,050}. \]
     </section>
 
     <!-- PART VIII -->
@@ -1235,37 +777,23 @@ std::span&lt;const float&gt; data() const;</code></pre>
       <p>Logits can be negative, greater than one, or zero. Softmax converts them into a valid probability distribution:</p>
       <div class="callout callout-math">
         <div class="callout-title">Mathematical Result: Softmax Mapping</div>
-        \[
-        \boxed{p_i = \frac{e^{z_i}}{\sum_j e^{z_j}}}
-        \]
+        \[ \boxed{p_i = \frac{e^{z_i}}{\sum_j e^{z_j}}} \]
       </div>
 
       <h3>29. Calculate a softmax example by hand</h3>
       <p>For logits \([2, 1, 0]\):</p>
-      \[
-      e^2 \approx 7.3891, \qquad e^1 \approx 2.7183, \qquad e^0 = 1.0.
-      \]
-      \[
-      \sum = 7.3891 + 2.7183 + 1.0 = 11.1074.
-      \]
-      \[
-      p_0 = \frac{7.3891}{11.1074} \approx 0.6652, \qquad
-      p_1 = \frac{2.7183}{11.1074} \approx 0.2447, \qquad
-      p_2 = \frac{1.0}{11.1074} \approx 0.0900.
-      \]
+      \[ e^2 \approx 7.3891, \qquad e^1 \approx 2.7183, \qquad e^0 = 1.0. \]
+      \[ \sum = 7.3891 + 2.7183 + 1.0 = 11.1074. \]
+      \[ p_0 = \frac{7.3891}{11.1074} \approx 0.6652, \qquad p_1 = \frac{2.7183}{11.1074} \approx 0.2447, \qquad p_2 = \frac{1.0}{11.1074} \approx 0.0900. \]
 
       <h3>30. Why softmax needs numerical stability</h3>
       <p>
         In 32-bit floating point, \(e^{1000}\) overflows into <code>inf</code>. By factoring out \(c = m = \max_j z_j\):
       </p>
-      \[
-      \frac{e^{z_i - m}}{\sum_j e^{z_j - m}} = \frac{e^{-m}e^{z_i}}{e^{-m}\sum_j e^{z_j}} = \frac{e^{z_i}}{\sum_j e^{z_j}}.
-      \]
+      \[ \frac{e^{z_i - m}}{\sum_j e^{z_j - m}} = \frac{e^{-m}e^{z_i}}{e^{-m}\sum_j e^{z_j}} = \frac{e^{z_i}}{\sum_j e^{z_j}}. \]
       <div class="callout callout-math">
         <div class="callout-title">Mathematical Result: Stable Softmax</div>
-        \[
-        \boxed{p_i = \frac{e^{z_i - m}}{\sum_j e^{z_j - m}}, \qquad m = \max_j z_j}
-        \]
+        \[ \boxed{p_i = \frac{e^{z_i - m}}{\sum_j e^{z_j - m}}, \qquad m = \max_j z_j} \]
       </div>
       <p>For logits \([1000, 1001, 999]\), subtracting 1001 yields \([-1, 0, -2]\), which evaluates safely without overflow.</p>
 
@@ -1295,14 +823,10 @@ std::span&lt;const float&gt; data() const;</code></pre>
       <h3>32. Entropy is not the same thing as cross-entropy</h3>
       <ul>
         <li><strong>Entropy:</strong> Measures intrinsic uncertainty of a distribution:
-          \[
-          H(p) = -\sum_i p_i \log p_i
-          \]
+          \[ H(p) = -\sum_i p_i \log p_i \]
         </li>
         <li><strong>Cross-entropy:</strong> Penalises divergence between target \(y\) and prediction \(p\):
-          \[
-          \boxed{H(y, p) = -\sum_i y_i \log p_i}
-          \]
+          \[ \boxed{H(y, p) = -\sum_i y_i \log p_i} \]
         </li>
       </ul>
 
@@ -1313,20 +837,14 @@ std::span&lt;const float&gt; data() const;</code></pre>
 
       <h3>34. The categorical target and one-hot notation</h3>
       <p>For one-hot vector where \(y_k = 1\) and all other elements are 0:</p>
-      \[
-      L = -\sum_{i=0}^9 y_i \ln p_i = -\ln p_k.
-      \]
+      \[ L = -\sum_{i=0}^9 y_i \ln p_i = -\ln p_k. \]
 
       <h3>35. Cross-entropy from softmax logits</h3>
-      \[
-      L = -\ln\left(\frac{e^{z_y}}{\sum_j e^{z_j}}\right) = -\left(z_y - \ln\sum_j e^{z_j}\right) = \ln\left(\sum_j e^{z_j}\right) - z_y.
-      \]
+      \[ L = -\ln\left(\frac{e^{z_y}}{\sum_j e^{z_j}}\right) = -\left(z_y - \ln\sum_j e^{z_j}\right) = \ln\left(\sum_j e^{z_j}\right) - z_y. \]
       <p>With numerical shift \(m = \max_j z_j\):</p>
       <div class="callout callout-math">
         <div class="callout-title">Mathematical Result: Numerically Stable Log-Sum-Exp Cross Entropy</div>
-        \[
-        \boxed{L = m + \ln\left(\sum_j e^{z_j - m}\right) - z_y}
-        \]
+        \[ \boxed{L = m + \ln\left(\sum_j e^{z_j - m}\right) - z_y} \]
       </div>
 
       <h3>36. Calculate the cross-entropy example completely</h3>
@@ -1341,9 +859,7 @@ std::span&lt;const float&gt; data() const;</code></pre>
       <p>We need the gradient of the loss with respect to every output logit:</p>
       <div class="callout callout-math">
         <div class="callout-title">Mathematical Result: The Softmax Cross-Entropy Logits Derivative</div>
-        \[
-        \boxed{\frac{\partial L}{\partial z_k} = p_k - y_k}
-        \]
+        \[ \boxed{\frac{\partial L}{\partial z_k} = p_k - y_k} \]
       </div>
 
       <h3>38. Derive the result from the softmax Jacobian</h3>
@@ -1353,18 +869,12 @@ std::span&lt;const float&gt; data() const;</code></pre>
         <li>When \(i \ne k\): \(\frac{\partial p_i}{\partial z_k} = -p_i p_k\).</li>
       </ul>
       <p>Using Kronecker delta \(\delta_{ik}\):</p>
-      \[
-      \frac{\partial p_i}{\partial z_k} = p_i(\delta_{ik} - p_k).
-      \]
+      \[ \frac{\partial p_i}{\partial z_k} = p_i(\delta_{ik} - p_k). \]
       <p>Applying chain rule to loss \(L = -\sum_i y_i \ln p_i\):</p>
-      \[
-      \frac{\partial L}{\partial z_k} = -\sum_i \frac{y_i}{p_i}\frac{\partial p_i}{\partial z_k} = -\sum_i \frac{y_i}{p_i} p_i(\delta_{ik} - p_k) = -\sum_i y_i(\delta_{ik} - p_k).
-      \]
-      \[
-      \frac{\partial L}{\partial z_k} = -\sum_i y_i \delta_{ik} + p_k \sum_i y_i = -y_k + p_k(1) = \boxed{p_k - y_k}.
-      \]
+      \[ \frac{\partial L}{\partial z_k} = -\sum_i \frac{y_i}{p_i}\frac{\partial p_i}{\partial z_k} = -\sum_i \frac{y_i}{p_i} p_i(\delta_{ik} - p_k) = -\sum_i y_i(\delta_{ik} - p_k). \]
+      \[ \frac{\partial L}{\partial z_k} = -\sum_i y_i \delta_{ik} + p_k \sum_i y_i = -y_k + p_k(1) = \boxed{p_k - y_k}. \]
 
-      <!-- LIVE WIDGET 3 -->
+      <!-- LAB 3 -->
       <div class="widget-panel">
         <div class="widget-header">
           <span class="widget-title">Interactive Laboratory 3: Log-Sum-Exp &amp; Softmax Gradient</span>
@@ -1439,27 +949,17 @@ ExampleLossResult softmax_cross_entropy(const std::vector&lt;float&gt;&amp; logi
 
       <h3>44. Start with the scalar equation</h3>
       <p>For output neuron \(o\): \(z_o = \sum_i W_{oi} a_i + b_o\). Let \(g_o = \frac{\partial L}{\partial z_o}\):</p>
-      \[
-      \boxed{\frac{\partial L}{\partial W_{oi}} = g_o a_i}, \qquad
-      \boxed{\frac{\partial L}{\partial b_o} = g_o}, \qquad
-      \boxed{\frac{\partial L}{\partial a_i} = \sum_o g_o W_{oi}}.
-      \]
+      \[ \boxed{\frac{\partial L}{\partial W_{oi}} = g_o a_i}, \qquad \boxed{\frac{\partial L}{\partial b_o} = g_o}, \qquad \boxed{\frac{\partial L}{\partial a_i} = \sum_o g_o W_{oi}}. \]
 
       <h3>45. Vector form of the dense backward pass</h3>
       <div class="callout callout-math">
         <div class="callout-title">Mathematical Result: Matrix Backward Equations</div>
-        \[
-        \boxed{\frac{\partial L}{\partial W} = \delta a^T}, \qquad
-        \boxed{\frac{\partial L}{\partial \mathbf{b}} = \delta}, \qquad
-        \boxed{\frac{\partial L}{\partial \mathbf{a}} = W^T \delta}
-        \]
+        \[ \boxed{\frac{\partial L}{\partial W} = \delta a^T}, \qquad \boxed{\frac{\partial L}{\partial \mathbf{b}} = \delta}, \qquad \boxed{\frac{\partial L}{\partial \mathbf{a}} = W^T \delta} \]
       </div>
 
       <h3>46. Why the weight gradient is an outer product</h3>
       <p>Given \(a = \begin{bmatrix} 2 \\ -1 \end{bmatrix}\) and upstream error \(\delta = \begin{bmatrix} 0.4 \\ -0.8 \end{bmatrix}\):</p>
-      \[
-      \frac{\partial L}{\partial W} = \delta a^T = \begin{bmatrix} 0.4 \\ -0.8 \end{bmatrix} \begin{bmatrix} 2 & -1 \end{bmatrix} = \begin{bmatrix} 0.4(2) & 0.4(-1) \\ -0.8(2) & -0.8(-1) \end{bmatrix} = \begin{bmatrix} 0.8 & -0.4 \\ -1.6 & 0.8 \end{bmatrix}.
-      \]
+      \[ \frac{\partial L}{\partial W} = \delta a^T = \begin{bmatrix} 0.4 \\ -0.8 \end{bmatrix} \begin{bmatrix} 2 & -1 \end{bmatrix} = \begin{bmatrix} 0.4(2) & 0.4(-1) \\ -0.8(2) & -0.8(-1) \end{bmatrix} = \begin{bmatrix} 0.8 & -0.4 \\ -1.6 & 0.8 \end{bmatrix}. \]
 
       <h3>47. Reference dense backward implementation</h3>
       <div class="callout callout-impl">
@@ -1496,15 +996,11 @@ ExampleLossResult softmax_cross_entropy(const std::vector&lt;float&gt;&amp; logi
       <p>To pass backward through a hidden layer, the gradient flows through the transposed weights and the ReLU derivative mask:</p>
       <div class="callout callout-math">
         <div class="callout-title">Mathematical Result: Hidden Layer Error Cascade</div>
-        \[
-        \boxed{\delta^{(l)} = \left((W^{(l+1)})^T \delta^{(l+1)}\right) \odot \operatorname{ReLU}'(z^{(l)})}
-        \]
+        \[ \boxed{\delta^{(l)} = \left((W^{(l+1)})^T \delta^{(l+1)}\right) \odot \operatorname{ReLU}'(z^{(l)})} \]
       </div>
 
       <h3>52. The parameter update</h3>
-      \[
-      \boxed{\theta_{\text{new}} = \theta_{\text{old}} - \eta\nabla_\theta L}
-      \]
+      \[ \boxed{\theta_{\text{new}} = \theta_{\text{old}} - \eta\nabla_\theta L} \]
 
       <h3>56. The training step visible in the Studio source</h3>
       <div class="callout callout-source">
@@ -1548,15 +1044,11 @@ float train_step(
 
       <h3>58. He initialisation</h3>
       <p>Designed for ReLU networks:</p>
-      \[
-      W_{ij} \sim \mathcal{N}\left(0, \frac{2}{n_{\text{in}}}\right), \qquad \sigma = \sqrt{\frac{2}{n_{\text{in}}}}.
-      \]
+      \[ W_{ij} \sim \mathcal{N}\left(0, \frac{2}{n_{\text{in}}}\right), \qquad \sigma = \sqrt{\frac{2}{n_{\text{in}}}}. \]
 
       <h3>59. Xavier initialisation</h3>
       <p>Designed for linear and sigmoid outputs:</p>
-      \[
-      W_{ij} \sim U\left(-\sqrt{\frac{6}{n_{\text{in}} + n_{\text{out}}}}, \sqrt{\frac{6}{n_{\text{in}} + n_{\text{out}}}}\right).
-      \]
+      \[ W_{ij} \sim U\left(-\sqrt{\frac{6}{n_{\text{in}} + n_{\text{out}}}}, \sqrt{\frac{6}{n_{\text{in}} + n_{\text{out}}}}\right). \]
 
       <h3>65. MNIST's standard IDX files</h3>
       <p>Standard binary uncompressed archives:</p>
@@ -1599,9 +1091,7 @@ LAYER fc2 ...</code></pre>
       </p>
       <div class="callout callout-math">
         <div class="callout-title">Mathematical Result: Central Finite Difference</div>
-        \[
-        \boxed{g_{\text{numeric}} \approx \frac{L(\theta + \varepsilon) - L(\theta - \varepsilon)}{2\varepsilon}}
-        \]
+        \[ \boxed{g_{\text{numeric}} \approx \frac{L(\theta + \varepsilon) - L(\theta - \varepsilon)}{2\varepsilon}} \]
       </div>
 
       <h3>Summary of Principal Equations</h3>
@@ -1626,1463 +1116,815 @@ LAYER fc2 ...</code></pre>
     <section id="part-28">
       <h2>Part XXVIII — Interactive learning suite &amp; compilation guide</h2>
 
-      <!-- LIVE WIDGET 4 (Styled to match screenshot) -->
+      <!-- Static demo: bars on the left, drawn "5" on the right. No JS. -->
       <div class="widget-panel">
-        <div class="widget-header">
-          <span class="widget-title">Interactive Laboratory 4: 28×28 Canvas Normalization &amp; Live Terminal Output</span>
-          <span class="widget-badge">Interactive Test</span>
-        </div>
-        <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 0.75rem; font-family: var(--font-sans);">
-          Draw a digit below to inspect how the canvas is converted into a 784-element normalized vector ($p_i / 255.0$) for classification.
-        </p>
-        <div class="canvas-layout">
-          <canvas id="drawingCanvas" width="140" height="140"></canvas>
-          <div class="canvas-controls">
-            <!-- Signature Purple-Indigo Gradient Pill Button -->
-            <button id="clearCanvasBtn">Clear Canvas</button>
-            <div style="font-size: 0.82rem; font-family: var(--font-mono); color: var(--terminal-green); margin-top: 0.4rem;" id="pixelReadout">
-              Active Pixels: 0 / 784
-            </div>
-            <div class="bar-chart" id="probBars"></div>
+        <div class="demo-row">
+          <div class="bar-chart">
+            <div class="bar-row"><span>0</span><div class="bar-outer"><div class="bar-fill" style="width:0%"></div></div><span>0%</span></div>
+            <div class="bar-row"><span>1</span><div class="bar-outer"><div class="bar-fill" style="width:0%"></div></div><span>0%</span></div>
+            <div class="bar-row"><span>2</span><div class="bar-outer"><div class="bar-fill" style="width:0%"></div></div><span>0%</span></div>
+            <div class="bar-row"><span>3</span><div class="bar-outer"><div class="bar-fill" style="width:0%"></div></div><span>0%</span></div>
+            <div class="bar-row"><span>4</span><div class="bar-outer"><div class="bar-fill" style="width:0%"></div></div><span>0%</span></div>
+            <div class="bar-row"><span>5</span><div class="bar-outer"><div class="bar-fill" style="width:99%"></div></div><span>99%</span></div>
+            <div class="bar-row"><span>6</span><div class="bar-outer"><div class="bar-fill" style="width:0%"></div></div><span>0%</span></div>
+            <div class="bar-row"><span>7</span><div class="bar-outer"><div class="bar-fill" style="width:0%"></div></div><span>0%</span></div>
+            <div class="bar-row"><span>8</span><div class="bar-outer"><div class="bar-fill" style="width:0%"></div></div><span>0%</span></div>
+            <div class="bar-row"><span>9</span><div class="bar-outer"><div class="bar-fill" style="width:0%"></div></div><span>0%</span></div>
           </div>
+          <svg width="140" height="140" viewBox="0 0 140 140">
+            <rect width="140" height="140" fill="#090d16"/>
+            <text x="70" y="108" font-size="110" font-weight="700" fill="#fff" text-anchor="middle" font-family="sans-serif">5</text>
+          </svg>
         </div>
       </div>
 
-<!-- PART XXIX -->
-<section id="part-29">
-  <h2>Part XXIX — Batch Training and Batch Normalisation</h2>
-
-  <h3>89. From one example to a batch</h3>
-
-  <p>
-    The original training procedure processed one image at a time. For every
-    image, the network performed a forward pass, calculated the loss, propagated
-    gradients backwards, and updated its parameters. This is stochastic
-    gradient descent (SGD) with a batch size of one.
-  </p>
-
-  <p>
-    Batch training processes several examples before updating the parameters.
-    If a batch contains \(B\) examples, the network calculates predictions and
-    losses for all \(B\) examples, accumulates their gradient contributions,
-    and performs one optimiser update.
-  </p>
-
-  <div class="callout callout-math">
-    <div class="callout-title">Mathematical Result: Mean Batch Loss</div>
-    \[
-      \boxed{
-      L_{\mathrm{mean}} =
-      \frac{1}{B}\sum_{i=1}^{B}L_i
-      }
-    \]
-    <p>
-      Here, \(L_i\) is the loss for example \(i\). The mean loss gives each
-      example equal weight while keeping the loss scale independent of the
-      number of examples in the batch.
-    </p>
-  </div>
-
-  <p>
-    The mean loss is differentiated with respect to the network's parameters.
-    Its gradient is the average of the individual examples' gradients.
-    Consequently, each example contributes \(1/B\) of its individual
-    gradient to the batch gradient.
-  </p>
-
-  <h3>90. What Batch Normalisation does</h3>
-
-  <p>
-    Batch Normalisation (BatchNorm or BN) normalises activations separately
-    for each feature across the examples in a mini-batch. It then applies
-    learnable scale and shift parameters.
-  </p>
-
-  <p>
-    Consider an input tensor \(X\) of shape \((B,F)\), where \(B\) is the
-    batch size and \(F\) is the number of features. For each feature \(j\),
-    BatchNorm calculates statistics across the batch dimension.
-  </p>
-
-  <p>
-    BatchNorm is not simply a fixed operation that forces every layer's
-    output to have zero mean and unit variance. Its learned parameters
-    \(\gamma\) and \(\beta\) allow the network to choose an appropriate
-    output scale and offset.
-  </p>
-
-  <h3>91. Calculating the batch mean</h3>
-
-  <p>
-    For a particular feature \(j\), let its activation in example \(i\)
-    be \(x_{ij}\). The batch mean for that feature is
-  </p>
-
-  \[
-    \boxed{
-      \mu_j = \frac{1}{B}\sum_{i=1}^{B}x_{ij}
-    }
-  \]
-
-  <p>
-    The mean describes the average activation of the feature across the
-    current batch. Every example contributes to the same feature mean.
-  </p>
-
-  <h3>92. Calculating the batch variance</h3>
-
-  <p>
-    Variance measures the spread of the activations around their mean.
-    BatchNorm uses the population variance of the current batch:
-  </p>
-
-  \[
-    \boxed{
-      \sigma_j^2 =
-      \frac{1}{B}\sum_{i=1}^{B}(x_{ij}-\mu_j)^2
-    }
-  \]
-
-  <p>
-    The divisor is \(B\), rather than \(B-1\). This is the variance convention
-    used in the standard training-time BatchNorm calculation.
-  </p>
-
-  <h3>93. Normalising the activations</h3>
-
-  <p>
-    The mean is subtracted from each activation, and the result is divided
-    by the standard deviation:
-  </p>
-
-  \[
-    \boxed{
-      \hat{x}_{ij} =
-      \frac{x_{ij}-\mu_j}
-      {\sqrt{\sigma_j^2+\epsilon}}
-    }
-  \]
-
-  <p>
-    The small positive constant \(\epsilon\) improves numerical stability
-    and prevents division by zero. Without it, a feature with zero variance
-    would have a zero denominator.
-  </p>
-
-  <p>
-    Normalisation centres the batch activations and scales their spread.
-    With nonzero variance, their normalised values have mean approximately
-    zero and variance approximately one. The exact variance is slightly
-    affected by \(\epsilon\).
-  </p>
-
-  <h3>94. The learnable scale and shift</h3>
-
-  <p>
-    BatchNorm transforms the normalised values using two trainable parameters
-    for each feature:
-  </p>
-
-  \[
-    \boxed{y_{ij}=\gamma_j\hat{x}_{ij}+\beta_j}
-  \]
-
-  <ul>
-    <li><strong>\(\gamma_j\)</strong> is the learned scale.</li>
-    <li><strong>\(\beta_j\)</strong> is the learned shift.</li>
-  </ul>
-
-  <p>
-    The usual initial values are \(\gamma_j=1\) and \(\beta_j=0\), so the
-    initial transformation preserves the normalised values. Training can
-    change both parameters.
-  </p>
-
-  <p>
-    BatchNorm therefore performs four main operations during its training
-    forward pass: calculate the mean, calculate the variance, normalise the
-    activations, and apply the learned scale and shift.
-  </p>
-
-  <h3>95. A numerical example</h3>
-
-  <p>
-    Suppose one feature has four activations:
-    \(X=[2,4,6,8]\). Its mean is \(5\), and its population variance is \(5\).
-    If \(\epsilon\) is ignored for this illustrative calculation, its
-    normalised values are approximately:
-  </p>
-
-  \[
-    \hat{X} =
-    [-1.342,-0.447,0.447,1.342]
-  \]
-
-  <p>
-    If \(\gamma=1\) and \(\beta=0\), these are also the outputs. If
-    \(\gamma=2\) and \(\beta=1\), the outputs become approximately
-    \([-1.683,0.106,1.894,3.683]\).
-  </p>
-
-  <p>
-    The second example demonstrates that BatchNorm's final output is not
-    required to retain zero mean and unit variance. The learned scale and
-    shift can change both.
-  </p>
-</section>
-
-<!-- PART XXX -->
-<section id="part-30">
-  <h2>Part XXX — BatchNorm: Deriving the Backward Pass</h2>
-
-  <h3>96. What enters and leaves backward()</h3>
-
-  <p>
-    Backpropagation supplies each operation with the gradient of the loss
-    with respect to that operation's output. The operation uses its local
-    derivative to calculate the gradient with respect to its input.
-  </p>
-
-  <p>
-    For BatchNorm, define the incoming gradient for feature \(j\) and
-    example \(i\) as
-  </p>
-
-  \[
-    g_{ij} = \frac{\partial L}{\partial y_{ij}}
-  \]
-
-  <p>
-    BatchNorm must calculate the gradients of its learned parameters
-    \(\gamma_j\) and \(\beta_j\), as well as the gradient with respect
-    to each input activation \(x_{ij}\).
-  </p>
-
-  <h3>97. Deriving the shift gradient</h3>
-
-  <p>
-    Since \(y_{ij}=\gamma_j\hat{x}_{ij}+\beta_j\), differentiating with
-    respect to the shift gives
-  </p>
-
-  \[
-    \frac{\partial y_{ij}}{\partial\beta_j}=1
-  \]
-
-  <p>
-    Applying the chain rule and summing the contributions from the batch:
-  </p>
-
-  \[
-    \boxed{
-      \frac{\partial L}{\partial\beta_j}
-      =\sum_{i=1}^{B}g_{ij}
-    }
-  \]
-
-  <p>
-    Every example contributes its incoming gradient because changing
-    \(\beta_j\) changes every output for that feature by the same amount.
-  </p>
-
-  <h3>98. Deriving the scale gradient</h3>
-
-  <p>
-    Differentiating the output with respect to the scale parameter gives
-  </p>
-
-  \[
-    \frac{\partial y_{ij}}{\partial\gamma_j}=\hat{x}_{ij}
-  \]
-
-  <p>
-    Applying the chain rule:
-  </p>
-
-  \[
-    \boxed{
-      \frac{\partial L}{\partial\gamma_j}
-      =\sum_{i=1}^{B}g_{ij}\hat{x}_{ij}
-    }
-  \]
-
-  <p>
-    Each contribution is weighted by the corresponding normalised activation.
-    Positive and negative normalised values can therefore contribute
-    differently to the scale gradient.
-  </p>
-
-  <h3>99. Why the input gradient is more complicated</h3>
-
-  <p>
-    A common mistake is to assume that the output for example \(i\) depends
-    only on input \(x_i\). It also depends on the batch mean and variance,
-    and those statistics depend on every input in the batch.
-  </p>
-
-  <p>
-    Changing \(x_i\) affects its own numerator, the batch mean, and the
-    batch variance. The changed statistics can also affect the normalised
-    outputs of other examples. Backpropagation must account for all these
-    paths through the computation graph.
-  </p>
-
-  <h3>100. Start with the normalisation equation</h3>
-
-  <p>
-    For one feature, temporarily omit its feature index and write:
-  </p>
-
-  \[
-    \hat{x}_i =
-    (x_i-\mu)(\sigma^2+\epsilon)^{-1/2}
-  \]
-
-  <p>
-    Define the inverse standard deviation as
-  </p>
-
-  \[
-    r=(\sigma^2+\epsilon)^{-1/2}
-  \]
-
-  <p>
-    Then \(\hat{x}_i=(x_i-\mu)r\). The output equation is
-    \(y_i=\gamma\hat{x}_i+\beta\), so the gradient arriving at the
-    normalised value is
-  </p>
-
-  \[
-    q_i=\frac{\partial L}{\partial\hat{x}_i}
-    =\gamma g_i
-  \]
-
-  <h3>101. The variance path</h3>
-
-  <p>
-    The inverse standard deviation depends on the variance. Its derivative is
-  </p>
-
-  \[
-    \frac{\partial r}{\partial\sigma^2}
-    =-\frac{1}{2}(\sigma^2+\epsilon)^{-3/2}
-  \]
-
-  <p>
-    Since every normalised value uses the same variance, the gradient with
-    respect to the variance receives contributions from every example:
-  </p>
-
-  \[
-    \frac{\partial L}{\partial\sigma^2}
-    =-\frac{1}{2}(\sigma^2+\epsilon)^{-3/2}
-      \sum_{k=1}^{B}q_k(x_k-\mu)
-  \]
-
-  <p>
-    This term represents the effect of changing the batch's spread on
-    all normalised outputs.
-  </p>
-
-  <h3>102. The mean path</h3>
-
-  <p>
-    The batch mean also depends on every input:
-  </p>
-
-  \[
-    \frac{\partial\mu}{\partial x_i}=\frac{1}{B}
-  \]
-
-  <p>
-    A change in one input shifts the mean, which affects every normalised
-    activation. The derivative must therefore combine the direct path from
-    \(x_i\), the mean path, and the variance path.
-  </p>
-
-  <h3>103. The complete input-gradient equation</h3>
-
-  <p>
-    Applying the chain rule to these paths and simplifying gives the standard
-    BatchNorm input gradient. For one feature, with
-    \(r=(\sigma^2+\epsilon)^{-1/2}\):
-  </p>
-
-  <div class="callout callout-math">
-    <div class="callout-title">Mathematical Result: BatchNorm Input Gradient</div>
-    \[
-      \boxed{
-      \frac{\partial L}{\partial x_i}
-      =\frac{\gamma r}{B}
-      \left[
-        Bg_i-\sum_{k=1}^{B}g_k
-        -\hat{x}_i\sum_{k=1}^{B}g_k\hat{x}_k
-      \right]
-      }
-    \]
-    <p>
-      All sums are over the examples in the batch for the same feature.
-      The expression accounts for the direct input path and the indirect
-      effects through the batch mean and variance.
-    </p>
-  </div>
-
-  <h3>104. Interpreting the three terms</h3>
-
-  <ul>
-    <li>
-      <strong>\(Bg_i\):</strong> the direct contribution of the current
-      example's incoming gradient.
-    </li>
-    <li>
-      <strong>\(-\sum_k g_k\):</strong> the correction caused by the
-      shared batch mean.
-    </li>
-    <li>
-      <strong>\(-\hat{x}_i\sum_k g_k\hat{x}_k\):</strong> the correction
-      caused by the shared batch variance.
-    </li>
-  </ul>
-
-  <p>
-    The factor \(\gamma r/B\) scales the combined result. In particular,
-    the division by \(B\) is part of the derivative of BatchNorm; it is
-    not an instruction to average all gradients a second time.
-  </p>
-
-  <h3>105. Mapping the derivation to NeuralEngine</h3>
-
-  <p>
-    In the current implementation, the incoming gradient is
-    <code>output_gradient</code>. For each feature, the implementation
-    calculates two sums:
-  </p>
-
-  <pre><code>sum_gradient += grad;
+      <!-- PART XXIX -->
+      <section id="part-29">
+        <h2>Part XXIX — Batch Training and Batch Normalisation</h2>
+
+        <h3>89. From one example to a batch</h3>
+        <p>
+          The original training procedure processed one image at a time. For every image, the network performed a forward pass, calculated the loss, propagated gradients backwards, and updated its parameters. This is stochastic gradient descent (SGD) with a batch size of one.
+        </p>
+        <p>
+          Batch training processes several examples before updating the parameters. If a batch contains \(B\) examples, the network calculates predictions and losses for all \(B\) examples, accumulates their gradient contributions, and performs one optimiser update.
+        </p>
+
+        <div class="callout callout-math">
+          <div class="callout-title">Mathematical Result: Mean Batch Loss</div>
+          \[ \boxed{L_{\mathrm{mean}} = \frac{1}{B}\sum_{i=1}^{B}L_i} \]
+          <p>
+            Here, \(L_i\) is the loss for example \(i\). The mean loss gives each example equal weight while keeping the loss scale independent of the number of examples in the batch.
+          </p>
+        </div>
+
+        <p>
+          The mean loss is differentiated with respect to the network's parameters. Its gradient is the average of the individual examples' gradients. Consequently, each example contributes \(1/B\) of its individual gradient to the batch gradient.
+        </p>
+
+        <h3>90. What Batch Normalisation does</h3>
+        <p>
+          Batch Normalisation (BatchNorm or BN) normalises activations separately for each feature across the examples in a mini-batch. It then applies learnable scale and shift parameters.
+        </p>
+        <p>
+          Consider an input tensor \(X\) of shape \((B,F)\), where \(B\) is the batch size and \(F\) is the number of features. For each feature \(j\), BatchNorm calculates statistics across the batch dimension.
+        </p>
+        <p>
+          BatchNorm is not simply a fixed operation that forces every layer's output to have zero mean and unit variance. Its learned parameters \(\gamma\) and \(\beta\) allow the network to choose an appropriate output scale and offset.
+        </p>
+
+        <h3>91. Calculating the batch mean</h3>
+        <p>
+          For a particular feature \(j\), let its activation in example \(i\) be \(x_{ij}\). The batch mean for that feature is
+        </p>
+        \[ \boxed{\mu_j = \frac{1}{B}\sum_{i=1}^{B}x_{ij}} \]
+        <p>
+          The mean describes the average activation of the feature across the current batch. Every example contributes to the same feature mean.
+        </p>
+
+        <h3>92. Calculating the batch variance</h3>
+        <p>
+          Variance measures the spread of the activations around their mean. BatchNorm uses the population variance of the current batch:
+        </p>
+        \[ \boxed{\sigma_j^2 = \frac{1}{B}\sum_{i=1}^{B}(x_{ij}-\mu_j)^2} \]
+        <p>
+          The divisor is \(B\), rather than \(B-1\). This is the variance convention used in the standard training-time BatchNorm calculation.
+        </p>
+
+        <h3>93. Normalising the activations</h3>
+        <p>
+          The mean is subtracted from each activation, and the result is divided by the standard deviation:
+        </p>
+        \[ \boxed{\hat{x}_{ij} = \frac{x_{ij}-\mu_j}{\sqrt{\sigma_j^2+\epsilon}}} \]
+        <p>
+          The small positive constant \(\epsilon\) improves numerical stability and prevents division by zero. Without it, a feature with zero variance would have a zero denominator.
+        </p>
+        <p>
+          Normalisation centres the batch activations and scales their spread. With nonzero variance, their normalised values have mean approximately zero and variance approximately one. The exact variance is slightly affected by \(\epsilon\).
+        </p>
+
+        <h3>94. The learnable scale and shift</h3>
+        <p>
+          BatchNorm transforms the normalised values using two trainable parameters for each feature:
+        </p>
+        \[ \boxed{y_{ij}=\gamma_j\hat{x}_{ij}+\beta_j} \]
+        <ul>
+          <li><strong>\(\gamma_j\)</strong> is the learned scale.</li>
+          <li><strong>\(\beta_j\)</strong> is the learned shift.</li>
+        </ul>
+        <p>
+          The usual initial values are \(\gamma_j=1\) and \(\beta_j=0\), so the initial transformation preserves the normalised values. Training can change both parameters.
+        </p>
+        <p>
+          BatchNorm therefore performs four main operations during its training forward pass: calculate the mean, calculate the variance, normalise the activations, and apply the learned scale and shift.
+        </p>
+
+        <h3>95. A numerical example</h3>
+        <p>
+          Suppose one feature has four activations: \(X=[2,4,6,8]\). Its mean is \(5\), and its population variance is \(5\). If \(\epsilon\) is ignored for this illustrative calculation, its normalised values are approximately:
+        </p>
+        \[ \hat{X} = [-1.342,-0.447,0.447,1.342] \]
+        <p>
+          If \(\gamma=1\) and \(\beta=0\), these are also the outputs. If \(\gamma=2\) and \(\beta=1\), the outputs become approximately \([-1.683,0.106,1.894,3.683]\).
+        </p>
+        <p>
+          The second example demonstrates that BatchNorm's final output is not required to retain zero mean and unit variance. The learned scale and shift can change both.
+        </p>
+      </section>
+
+      <!-- PART XXX -->
+      <section id="part-30">
+        <h2>Part XXX — BatchNorm: Deriving the Backward Pass</h2>
+
+        <h3>96. What enters and leaves backward()</h3>
+        <p>
+          Backpropagation supplies each operation with the gradient of the loss with respect to that operation's output. The operation uses its local derivative to calculate the gradient with respect to its input.
+        </p>
+        <p>
+          For BatchNorm, define the incoming gradient for feature \(j\) and example \(i\) as
+        </p>
+        \[ g_{ij} = \frac{\partial L}{\partial y_{ij}} \]
+        <p>
+          BatchNorm must calculate the gradients of its learned parameters \(\gamma_j\) and \(\beta_j\), as well as the gradient with respect to each input activation \(x_{ij}\).
+        </p>
+
+        <h3>97. Deriving the shift gradient</h3>
+        <p>
+          Since \(y_{ij}=\gamma_j\hat{x}_{ij}+\beta_j\), differentiating with respect to the shift gives
+        </p>
+        \[ \frac{\partial y_{ij}}{\partial\beta_j}=1 \]
+        <p>
+          Applying the chain rule and summing the contributions from the batch:
+        </p>
+        \[ \boxed{\frac{\partial L}{\partial\beta_j}=\sum_{i=1}^{B}g_{ij}} \]
+        <p>
+          Every example contributes its incoming gradient because changing \(\beta_j\) changes every output for that feature by the same amount.
+        </p>
+
+        <h3>98. Deriving the scale gradient</h3>
+        <p>
+          Differentiating the output with respect to the scale parameter gives
+        </p>
+        \[ \frac{\partial y_{ij}}{\partial\gamma_j}=\hat{x}_{ij} \]
+        <p>
+          Applying the chain rule:
+        </p>
+        \[ \boxed{\frac{\partial L}{\partial\gamma_j}=\sum_{i=1}^{B}g_{ij}\hat{x}_{ij}} \]
+        <p>
+          Each contribution is weighted by the corresponding normalised activation. Positive and negative normalised values can therefore contribute differently to the scale gradient.
+        </p>
+
+        <h3>99. Why the input gradient is more complicated</h3>
+        <p>
+          A common mistake is to assume that the output for example \(i\) depends only on input \(x_i\). It also depends on the batch mean and variance, and those statistics depend on every input in the batch.
+        </p>
+        <p>
+          Changing \(x_i\) affects its own numerator, the batch mean, and the batch variance. The changed statistics can also affect the normalised outputs of other examples. Backpropagation must account for all these paths through the computation graph.
+        </p>
+
+        <h3>100. Start with the normalisation equation</h3>
+        <p>
+          For one feature, temporarily omit its feature index and write:
+        </p>
+        \[ \hat{x}_i = (x_i-\mu)(\sigma^2+\epsilon)^{-1/2} \]
+        <p>
+          Define the inverse standard deviation as
+        </p>
+        \[ r=(\sigma^2+\epsilon)^{-1/2} \]
+        <p>
+          Then \(\hat{x}_i=(x_i-\mu)r\). The output equation is \(y_i=\gamma\hat{x}_i+\beta\), so the gradient arriving at the normalised value is
+        </p>
+        \[ q_i=\frac{\partial L}{\partial\hat{x}_i}=\gamma g_i \]
+
+        <h3>101. The variance path</h3>
+        <p>
+          The inverse standard deviation depends on the variance. Its derivative is
+        </p>
+        \[ \frac{\partial r}{\partial\sigma^2}=-\frac{1}{2}(\sigma^2+\epsilon)^{-3/2} \]
+        <p>
+          Since every normalised value uses the same variance, the gradient with respect to the variance receives contributions from every example:
+        </p>
+        \[ \frac{\partial L}{\partial\sigma^2}=-\frac{1}{2}(\sigma^2+\epsilon)^{-3/2}\sum_{k=1}^{B}q_k(x_k-\mu) \]
+        <p>
+          This term represents the effect of changing the batch's spread on all normalised outputs.
+        </p>
+
+        <h3>102. The mean path</h3>
+        <p>
+          The batch mean also depends on every input:
+        </p>
+        \[ \frac{\partial\mu}{\partial x_i}=\frac{1}{B} \]
+        <p>
+          A change in one input shifts the mean, which affects every normalised activation. The derivative must therefore combine the direct path from \(x_i\), the mean path, and the variance path.
+        </p>
+
+        <h3>103. The complete input-gradient equation</h3>
+        <p>
+          Applying the chain rule to these paths and simplifying gives the standard BatchNorm input gradient. For one feature, with \(r=(\sigma^2+\epsilon)^{-1/2}\):
+        </p>
+        <div class="callout callout-math">
+          <div class="callout-title">Mathematical Result: BatchNorm Input Gradient</div>
+          \[ \boxed{\frac{\partial L}{\partial x_i}=\frac{\gamma r}{B}\left[Bg_i-\sum_{k=1}^{B}g_k-\hat{x}_i\sum_{k=1}^{B}g_k\hat{x}_k\right]} \]
+          <p>
+            All sums are over the examples in the batch for the same feature. The expression accounts for the direct input path and the indirect effects through the batch mean and variance.
+          </p>
+        </div>
+
+        <h3>104. Interpreting the three terms</h3>
+        <ul>
+          <li><strong>\(Bg_i\):</strong> the direct contribution of the current example's incoming gradient.</li>
+          <li><strong>\(-\sum_k g_k\):</strong> the correction caused by the shared batch mean.</li>
+          <li><strong>\(-\hat{x}_i\sum_k g_k\hat{x}_k\):</strong> the correction caused by the shared batch variance.</li>
+        </ul>
+        <p>
+          The factor \(\gamma r/B\) scales the combined result. In particular, the division by \(B\) is part of the derivative of BatchNorm; it is not an instruction to average all gradients a second time.
+        </p>
+
+        <h3>105. Mapping the derivation to NeuralEngine</h3>
+        <p>
+          In the current implementation, the incoming gradient is <code>output_gradient</code>. For each feature, the implementation calculates two sums:
+        </p>
+        <pre><code>sum_gradient += grad;
 sum_gradient_normalized += grad * x_hat;</code></pre>
-
-  <p>
-    These correspond to
-    \(\sum_k g_k\) and \(\sum_k g_k\hat{x}_k\). The input gradient
-    is then calculated using the derived equation:
-  </p>
-
-  <pre><code>input_gradient.at({i, j}) =
+        <p>
+          These correspond to \(\sum_k g_k\) and \(\sum_k g_k\hat{x}_k\). The input gradient is then calculated using the derived equation:
+        </p>
+        <pre><code>input_gradient.at({i, j}) =
     (gamma_[j] * inverse_std_[j] / n)
     * (n * grad
        - sum_gradient
        - x_hat * sum_gradient_normalized);</code></pre>
+        <p>
+          Here, <code>gamma_[j]</code> is \(\gamma\), <code>inverse_std_[j]</code> is \(r\), and <code>n</code> is the batch size \(B\). The formula should retain its division by <code>n</code>.
+        </p>
 
-  <p>
-    Here, <code>gamma_[j]</code> is \(\gamma\),
-    <code>inverse_std_[j]</code> is \(r\), and <code>n</code> is the
-    batch size \(B\). The formula should retain its division by
-    <code>n</code>.
-  </p>
-
-  <h3>106. The backward chain through Dense, BatchNorm and ReLU</h3>
-
-  <p>
-    Consider the forward sequence:
-  </p>
-
-  \[
-    z = \operatorname{Dense}(x),\qquad
-    a = \operatorname{BatchNorm}(z),\qquad
-    h = \operatorname{ReLU}(a)
-  \]
-
-  <p>
-    Backpropagation traverses these operations in reverse order:
-  </p>
-
-  <pre><code>gradient = relu4.backward(gradient);
+        <h3>106. The backward chain through Dense, BatchNorm and ReLU</h3>
+        <p>
+          Consider the forward sequence:
+        </p>
+        \[ z = \operatorname{Dense}(x),\qquad a = \operatorname{BatchNorm}(z),\qquad h = \operatorname{ReLU}(a) \]
+        <p>
+          Backpropagation traverses these operations in reverse order:
+        </p>
+        <pre><code>gradient = relu4.backward(gradient);
 gradient = bn4.backward(gradient);
 gradient = fc4.backward(gradient);</code></pre>
-
-  <p>
-    ReLU receives the gradient with respect to its output and returns the
-    gradient with respect to its input. BatchNorm receives that result as
-    the gradient with respect to its output and returns the gradient with
-    respect to its input. Dense then receives the gradient with respect
-    to its output.
-  </p>
-
-  <p>
-    The variable name <code>gradient</code> remains the same, but its
-    mathematical meaning changes after every call. Each operation returns
-    the gradient required by the preceding operation.
-  </p>
-
-  <h3>107. Batch size one</h3>
-
-  <p>
-    If \(B=1\), the only activation equals its own batch mean, so
-    \(\mu=x_1\) and \(\sigma^2=0\). Therefore:
-  </p>
-
-  \[
-    \hat{x}_1=\frac{x_1-x_1}{\sqrt{\epsilon}}=0
-  \]
-
-  <p>
-    The output becomes \(y_1=\beta\), independent of the input. Substituting
-    \(B=1\) into the input-gradient equation also gives zero. Thus, training
-    BatchNorm with a batch size of one blocks the gradient to the preceding
-    layer through that BatchNorm operation.
-  </p>
-</section>
-
-<!-- PART XXXI -->
-<section id="part-31">
-  <h2>Part XXXI — Gradient Scaling and Mean Batch Loss</h2>
-
-  <h3>108. Why the loss and gradient must agree</h3>
-
-  <p>
-    For softmax cross-entropy, the gradient of the loss for one example
-    with respect to a logit \(z_j\) is \(p_j-y_j\), where \(p_j\) is
-    the predicted probability and \(y_j\) is the one-hot target.
-  </p>
-
-  \[
-    \frac{\partial L_i}{\partial z_{ij}}=p_{ij}-y_{ij}
-  \]
-
-  <p>
-    For the mean loss across a batch, the derivative is instead:
-  </p>
-
-  \[
-    \boxed{
-      \frac{\partial L_{\mathrm{mean}}}{\partial z_{ij}}
-      =\frac{p_{ij}-y_{ij}}{B}
-    }
-  \]
-
-  <p>
-    Returning the mean scalar loss while returning unscaled gradients
-    would make the loss value and its gradient represent different
-    objectives: the mean loss and the sum of individual losses,
-    respectively.
-  </p>
-
-  <h3>109. Where the averaging occurs</h3>
-
-  <p>
-    NeuralEngine now scales the batch logits gradient by \(1/B\) in
-    <code>softmax_cross_entropy()</code>. This means that the gradient
-    entering backpropagation already corresponds to the mean batch loss.
-  </p>
-
-  <p>
-    Dense accumulates the weight and bias gradient contributions across
-    the batch. Since the incoming gradients already contain the factor
-    \(1/B\), Dense must not divide its accumulated parameter gradients
-    by \(B\) again.
-  </p>
-
-  <p>
-    BatchNorm similarly accumulates the contributions to \(\gamma\) and
-    \(\beta\). It must not perform a separate division by \(B\) when its
-    incoming gradients have already been scaled at the loss.
-  </p>
-
-  <div class="callout callout-source">
-    <div class="callout-title">Implementation Rule</div>
-    <ul>
-      <li>Scale the batch loss gradient once, at the loss function.</li>
-      <li>Accumulate Dense weight and bias gradients without another division.</li>
-      <li>Accumulate BatchNorm scale and shift gradients without another division.</li>
-      <li>Keep BatchNorm's input-gradient formula, including its internal \(1/B\).</li>
-      <li>Do not insert arbitrary gradient averaging into ReLU or other operations.</li>
-    </ul>
-  </div>
-
-  <p>
-    This rule applies to the batch loss overload. The single-example loss
-    has \(B=1\), so its gradient requires no additional scaling.
-  </p>
-
-  <h3>110. Why the BatchNorm input gradient is not averaged again</h3>
-
-  <p>
-    The input-gradient equation already derives how the incoming gradients
-    propagate through the normalisation operation. Its factor \(1/B\)
-    comes from differentiating the batch statistics.
-  </p>
-
-  <p>
-    If the incoming gradient has already been scaled by \(1/B\), the
-    BatchNorm input gradient automatically carries that scaling through
-    the formula. Dividing the returned input gradient by \(B\) again
-    would introduce an unwanted additional factor.
-  </p>
-
-  <p>
-    Gradient scaling must therefore be distinguished from derivative
-    factors that naturally arise when differentiating an operation.
-    Not every occurrence of \(1/B\) in a derivative is an additional
-    loss-averaging step.
-  </p>
-
-  <h3>111. Batch gradients versus parameter updates</h3>
-
-  <p>
-    A batch produces one set of parameter gradients and normally one
-    optimiser update. With per-example SGD, parameters are updated after
-    each example. With batch training, parameters remain fixed while
-    the examples in a batch are processed, and the optimiser updates
-    them after backpropagation.
-  </p>
-
-  <p>
-    The number of updates per epoch consequently changes with batch size.
-    Equal epoch counts do not imply equal numbers of parameter updates
-    or identical optimisation trajectories.
-  </p>
-</section>
-
-<!-- PART XXXII -->
-<section id="part-32">
-  <h2>Part XXXII — Training Stability, Learning Rates and BatchNorm</h2>
-
-  <h3>112. Learning rate and overshooting</h3>
-
-  <p>
-    Gradient descent updates parameters according to
-  </p>
-
-  \[
-    \theta_{\mathrm{new}}
-    =\theta_{\mathrm{old}}-\eta\nabla_\theta L
-  \]
-
-  <p>
-    The learning rate \(\eta\) controls the step size. If the learning rate
-    is too high for the local geometry of the loss surface, updates can
-    overshoot regions of low loss. Repeated overshooting can produce
-    oscillation, unstable loss values, or divergence.
-  </p>
-
-  <p>
-    If calculations overflow or invalid numerical values propagate through
-    the network, the loss can become non-finite, including positive
-    infinity (\(\mathrm{Inf}\)).
-  </p>
-
-  <h3>113. How BatchNorm can affect optimisation</h3>
-
-  <p>
-    As the weights of a preceding layer change, the scale and offset of
-    its activations can change. BatchNorm uses current batch statistics
-    during training to normalise those activations before applying its
-    learned scale and shift.
-  </p>
-
-  <p>
-    This can make the network less sensitive to some changes in activation
-    scale and can improve the conditioning of the optimisation problem.
-    In some settings, it allows the use of a higher learning rate and
-    improves training speed or stability.
-  </p>
-
-  <p>
-    BatchNorm does not directly cap the loss, clip gradients, or guarantee
-    convergence. The learned scale can change, and other parts of the
-    network can still become unstable. Whether BatchNorm helps depends
-    on the architecture, batch size, learning rate, and training procedure.
-  </p>
-
-  <h3>114. Accuracy and cross-entropy measure different things</h3>
-
-  <p>
-    Accuracy measures the fraction of examples whose predicted class is
-    correct. Cross-entropy also penalises how much probability the model
-    assigns to the correct class.
-  </p>
-
-  <p>
-    A model can achieve higher accuracy while having higher mean
-    cross-entropy. For example, it may classify more examples correctly
-    but assign less probability to the correct class on those examples,
-    or make a few highly confident mistakes.
-  </p>
-
-  <p>
-    A higher cross-entropy value alone does not prove that a model has
-    become less confident overall. Confidence and calibration should be
-    assessed using the actual predicted probabilities, alongside accuracy
-    and loss.
-  </p>
-
-  <h3>115. Testing BatchNorm experimentally</h3>
-
-  <p>
-    To evaluate BatchNorm in NeuralEngine, compare training runs while
-    controlling the architecture, initial parameters, data split, and
-    evaluation procedure as far as possible.
-  </p>
-
-  <table>
-    <thead>
-      <tr>
-        <th>Experiment</th>
-        <th>BatchNorm</th>
-        <th>Learning rate</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr><td>A</td><td>Off</td><td>Lower</td></tr>
-      <tr><td>B</td><td>Off</td><td>Higher</td></tr>
-      <tr><td>C</td><td>On</td><td>Lower</td></tr>
-      <tr><td>D</td><td>On</td><td>Higher</td></tr>
-    </tbody>
-  </table>
-
-  <p>
-    Record test accuracy, mean test cross-entropy, training-loss curves,
-    and whether any run produces non-finite values. Compare both equal
-    epoch counts and, where relevant, equal optimiser-update counts.
-  </p>
-
-  <p>
-    This experiment can test whether BatchNorm improves stability or
-    permits a higher learning rate in this particular implementation.
-    It cannot establish that the same benefit will occur for every
-    architecture or dataset.
-  </p>
-
-  <h3>116. Summary of BatchNorm equations</h3>
-
-  <table>
-    <thead>
-      <tr><th>Operation</th><th>Equation</th></tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td>Batch mean</td>
-        <td>\(\mu=\frac{1}{B}\sum_i x_i\)</td>
-      </tr>
-      <tr>
-        <td>Batch variance</td>
-        <td>\(\sigma^2=\frac{1}{B}\sum_i(x_i-\mu)^2\)</td>
-      </tr>
-      <tr>
-        <td>Normalisation</td>
-        <td>\(\hat{x}_i=\frac{x_i-\mu}{\sqrt{\sigma^2+\epsilon}}\)</td>
-      </tr>
-      <tr>
-        <td>Scale and shift</td>
-        <td>\(y_i=\gamma\hat{x}_i+\beta\)</td>
-      </tr>
-      <tr>
-        <td>Shift gradient</td>
-        <td>\(\frac{\partial L}{\partial\beta}=\sum_i g_i\)</td>
-      </tr>
-      <tr>
-        <td>Scale gradient</td>
-        <td>\(\frac{\partial L}{\partial\gamma}=\sum_i g_i\hat{x}_i\)</td>
-      </tr>
-      <tr>
-        <td>Input gradient</td>
-        <td>\(\frac{\gamma r}{B}\left[Bg_i-\sum_k g_k-\hat{x}_i\sum_k g_k\hat{x}_k\right]\)</td>
-      </tr>
-      <tr>
-        <td>Mean batch loss</td>
-        <td>\(L_{\mathrm{mean}}=\frac{1}{B}\sum_i L_i\)</td>
-      </tr>
-      <tr>
-        <td>Mean-loss logit gradient</td>
-        <td>\(\frac{\partial L_{\mathrm{mean}}}{\partial z_{ij}}=\frac{p_{ij}-y_{ij}}{B}\)</td>
-      </tr>
-    </tbody>
-  </table>
-
-  <p>
-    In the input-gradient equation, \(r=(\sigma^2+\epsilon)^{-1/2}\)
-    and \(g_i=\partial L/\partial y_i\). The feature index is omitted
-    for readability, and all sums run over the batch for that feature.
-  </p>
-</section>
-
-<!-- PART XXXIII -->
-<section id="part-33">
-  <h2>Part XXXIII — MomentumSGD: Gradient Accumulation and Velocity</h2>
-
-  <h3>117. Why ordinary SGD can be inefficient</h3>
-
-  <p>
-    Ordinary Stochastic Gradient Descent updates parameters using the
-    current gradient. Each update is independent of the previous gradient:
-  </p>
-
-  \[
-    \theta_t = \theta_{t-1} - \eta g_t
-  \]
-
-  <p>
-    Here, \(g_t\) is the gradient at the current training step and
-    \(\eta\) is the learning rate.
-  </p>
-
-  <p>
-    This means SGD does not explicitly retain information about the
-    direction of previous updates. When gradients fluctuate significantly
-    between successive batches, the parameter updates can also fluctuate.
-  </p>
-
-  <h3>118. Introducing momentum</h3>
-
-  <p>
-    Momentum addresses this by maintaining a running accumulation of
-    previous gradients. This accumulated quantity is commonly called
-    velocity.
-  </p>
-
-  \[
-    v_t = \mu v_{t-1} + g_t
-  \]
-
-  <p>
-    The parameter update becomes:
-  </p>
-
-  \[
-    \theta_t = \theta_{t-1} - \eta v_t
-  \]
-
-  <p>
-    The momentum coefficient \(\mu\) determines how much of the previous
-    velocity is retained. A larger value gives more weight to previous
-    gradients.
-  </p>
-
-  <p>
-    When successive gradients point in similar directions, their
-    accumulated effect increases the update magnitude. When gradients
-    fluctuate, the accumulated velocity can smooth some of that variation.
-  </p>
-
-  <h3>119. Normalised momentum variant</h3>
-
-  <p>
-    In NeuralEngine, MomentumSGD also supports a normalised accumulation
-    mode. Instead of adding the entire current gradient, it uses an
-    exponential moving average:
-  </p>
-
-  \[
-    v_t = \mu v_{t-1} + (1-\mu)g_t
-  \]
-
-  <p>
-    The parameter update remains:
-  </p>
-
-  \[
-    \theta_t = \theta_{t-1} - \eta v_t
-  \]
-
-  <p>
-    The factor \(1-\mu\) makes the accumulated value an exponentially
-    weighted average of past gradients rather than their unnormalised
-    accumulation.
-  </p>
-
-  <p>
-    These are two different update conventions. The normalised variant
-    should not be confused with the classical momentum equation.
-  </p>
-
-  <h3>120. Implementing MomentumSGD in NeuralEngine</h3>
-
-  <p>
-    MomentumSGD maintains separate velocity arrays for weights and biases.
-    Since different Dense layers have different parameters, each layer
-    needs its own optimiser state.
-  </p>
-
-  <pre><code>struct VelocityState {
+        <p>
+          ReLU receives the gradient with respect to its output and returns the gradient with respect to its input. BatchNorm receives that result as the gradient with respect to its output and returns the gradient with respect to its input. Dense then receives the gradient with respect to its output.
+        </p>
+        <p>
+          The variable name <code>gradient</code> remains the same, but its mathematical meaning changes after every call. Each operation returns the gradient required by the preceding operation.
+        </p>
+
+        <h3>107. Batch size one</h3>
+        <p>
+          If \(B=1\), the only activation equals its own batch mean, so \(\mu=x_1\) and \(\sigma^2=0\). Therefore:
+        </p>
+        \[ \hat{x}_1=\frac{x_1-x_1}{\sqrt{\epsilon}}=0 \]
+        <p>
+          The output becomes \(y_1=\beta\), independent of the input. Substituting \(B=1\) into the input-gradient equation also gives zero. Thus, training BatchNorm with a batch size of one blocks the gradient to the preceding layer through that BatchNorm operation.
+        </p>
+      </section>
+
+      <!-- PART XXXI -->
+      <section id="part-31">
+        <h2>Part XXXI — Gradient Scaling and Mean Batch Loss</h2>
+
+        <h3>108. Why the loss and gradient must agree</h3>
+        <p>
+          For softmax cross-entropy, the gradient of the loss for one example with respect to a logit \(z_j\) is \(p_j-y_j\), where \(p_j\) is the predicted probability and \(y_j\) is the one-hot target.
+        </p>
+        \[ \frac{\partial L_i}{\partial z_{ij}}=p_{ij}-y_{ij} \]
+        <p>
+          For the mean loss across a batch, the derivative is instead:
+        </p>
+        \[ \boxed{\frac{\partial L_{\mathrm{mean}}}{\partial z_{ij}}=\frac{p_{ij}-y_{ij}}{B}} \]
+        <p>
+          Returning the mean scalar loss while returning unscaled gradients would make the loss value and its gradient represent different objectives: the mean loss and the sum of individual losses, respectively.
+        </p>
+
+        <h3>109. Where the averaging occurs</h3>
+        <p>
+          NeuralEngine now scales the batch logits gradient by \(1/B\) in <code>softmax_cross_entropy()</code>. This means that the gradient entering backpropagation already corresponds to the mean batch loss.
+        </p>
+        <p>
+          Dense accumulates the weight and bias gradient contributions across the batch. Since the incoming gradients already contain the factor \(1/B\), Dense must not divide its accumulated parameter gradients by \(B\) again.
+        </p>
+        <p>
+          BatchNorm similarly accumulates the contributions to \(\gamma\) and \(\beta\). It must not perform a separate division by \(B\) when its incoming gradients have already been scaled at the loss.
+        </p>
+
+        <div class="callout callout-source">
+          <div class="callout-title">Implementation Rule</div>
+          <ul>
+            <li>Scale the batch loss gradient once, at the loss function.</li>
+            <li>Accumulate Dense weight and bias gradients without another division.</li>
+            <li>Accumulate BatchNorm scale and shift gradients without another division.</li>
+            <li>Keep BatchNorm's input-gradient formula, including its internal \(1/B\).</li>
+            <li>Do not insert arbitrary gradient averaging into ReLU or other operations.</li>
+          </ul>
+        </div>
+
+        <p>
+          This rule applies to the batch loss overload. The single-example loss has \(B=1\), so its gradient requires no additional scaling.
+        </p>
+
+        <h3>110. Why the BatchNorm input gradient is not averaged again</h3>
+        <p>
+          The input-gradient equation already derives how the incoming gradients propagate through the normalisation operation. Its factor \(1/B\) comes from differentiating the batch statistics.
+        </p>
+        <p>
+          If the incoming gradient has already been scaled by \(1/B\), the BatchNorm input gradient automatically carries that scaling through the formula. Dividing the returned input gradient by \(B\) again would introduce an unwanted additional factor.
+        </p>
+        <p>
+          Gradient scaling must therefore be distinguished from derivative factors that naturally arise when differentiating an operation. Not every occurrence of \(1/B\) in a derivative is an additional loss-averaging step.
+        </p>
+
+        <h3>111. Batch gradients versus parameter updates</h3>
+        <p>
+          A batch produces one set of parameter gradients and normally one optimiser update. With per-example SGD, parameters are updated after each example. With batch training, parameters remain fixed while the examples in a batch are processed, and the optimiser updates them after backpropagation.
+        </p>
+        <p>
+          The number of updates per epoch consequently changes with batch size. Equal epoch counts do not imply equal numbers of parameter updates or identical optimisation trajectories.
+        </p>
+      </section>
+
+      <!-- PART XXXII -->
+      <section id="part-32">
+        <h2>Part XXXII — Training Stability, Learning Rates and BatchNorm</h2>
+
+        <h3>112. Learning rate and overshooting</h3>
+        <p>
+          Gradient descent updates parameters according to
+        </p>
+        \[ \theta_{\mathrm{new}}=\theta_{\mathrm{old}}-\eta\nabla_\theta L \]
+        <p>
+          The learning rate \(\eta\) controls the step size. If the learning rate is too high for the local geometry of the loss surface, updates can overshoot regions of low loss. Repeated overshooting can produce oscillation, unstable loss values, or divergence.
+        </p>
+        <p>
+          If calculations overflow or invalid numerical values propagate through the network, the loss can become non-finite, including positive infinity (\(\mathrm{Inf}\)).
+        </p>
+
+        <h3>113. How BatchNorm can affect optimisation</h3>
+        <p>
+          As the weights of a preceding layer change, the scale and offset of its activations can change. BatchNorm uses current batch statistics during training to normalise those activations before applying its learned scale and shift.
+        </p>
+        <p>
+          This can make the network less sensitive to some changes in activation scale and can improve the conditioning of the optimisation problem. In some settings, it allows the use of a higher learning rate and improves training speed or stability.
+        </p>
+        <p>
+          BatchNorm does not directly cap the loss, clip gradients, or guarantee convergence. The learned scale can change, and other parts of the network can still become unstable. Whether BatchNorm helps depends on the architecture, batch size, learning rate, and training procedure.
+        </p>
+
+        <h3>114. Accuracy and cross-entropy measure different things</h3>
+        <p>
+          Accuracy measures the fraction of examples whose predicted class is correct. Cross-entropy also penalises how much probability the model assigns to the correct class.
+        </p>
+        <p>
+          A model can achieve higher accuracy while having higher mean cross-entropy. For example, it may classify more examples correctly but assign less probability to the correct class on those examples, or make a few highly confident mistakes.
+        </p>
+        <p>
+          A higher cross-entropy value alone does not prove that a model has become less confident overall. Confidence and calibration should be assessed using the actual predicted probabilities, alongside accuracy and loss.
+        </p>
+
+        <h3>115. Testing BatchNorm experimentally</h3>
+        <p>
+          To evaluate BatchNorm in NeuralEngine, compare training runs while controlling the architecture, initial parameters, data split, and evaluation procedure as far as possible.
+        </p>
+        <table>
+          <thead>
+            <tr><th>Experiment</th><th>BatchNorm</th><th>Learning rate</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>A</td><td>Off</td><td>Lower</td></tr>
+            <tr><td>B</td><td>Off</td><td>Higher</td></tr>
+            <tr><td>C</td><td>On</td><td>Lower</td></tr>
+            <tr><td>D</td><td>On</td><td>Higher</td></tr>
+          </tbody>
+        </table>
+        <p>
+          Record test accuracy, mean test cross-entropy, training-loss curves, and whether any run produces non-finite values. Compare both equal epoch counts and, where relevant, equal optimiser-update counts.
+        </p>
+        <p>
+          This experiment can test whether BatchNorm improves stability or permits a higher learning rate in this particular implementation. It cannot establish that the same benefit will occur for every architecture or dataset.
+        </p>
+
+        <h3>116. Summary of BatchNorm equations</h3>
+        <table>
+          <thead>
+            <tr><th>Operation</th><th>Equation</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Batch mean</td><td>\(\mu=\frac{1}{B}\sum_i x_i\)</td></tr>
+            <tr><td>Batch variance</td><td>\(\sigma^2=\frac{1}{B}\sum_i(x_i-\mu)^2\)</td></tr>
+            <tr><td>Normalisation</td><td>\(\hat{x}_i=\frac{x_i-\mu}{\sqrt{\sigma^2+\epsilon}}\)</td></tr>
+            <tr><td>Scale and shift</td><td>\(y_i=\gamma\hat{x}_i+\beta\)</td></tr>
+            <tr><td>Shift gradient</td><td>\(\frac{\partial L}{\partial\beta}=\sum_i g_i\)</td></tr>
+            <tr><td>Scale gradient</td><td>\(\frac{\partial L}{\partial\gamma}=\sum_i g_i\hat{x}_i\)</td></tr>
+            <tr><td>Input gradient</td><td>\(\frac{\gamma r}{B}\left[Bg_i-\sum_k g_k-\hat{x}_i\sum_k g_k\hat{x}_k\right]\)</td></tr>
+            <tr><td>Mean batch loss</td><td>\(L_{\mathrm{mean}}=\frac{1}{B}\sum_i L_i\)</td></tr>
+            <tr><td>Mean-loss logit gradient</td><td>\(\frac{\partial L_{\mathrm{mean}}}{\partial z_{ij}}=\frac{p_{ij}-y_{ij}}{B}\)</td></tr>
+          </tbody>
+        </table>
+        <p>
+          In the input-gradient equation, \(r=(\sigma^2+\epsilon)^{-1/2}\) and \(g_i=\partial L/\partial y_i\). The feature index is omitted for readability, and all sums run over the batch for that feature.
+        </p>
+      </section>
+
+      <!-- PART XXXIII -->
+      <section id="part-33">
+        <h2>Part XXXIII — MomentumSGD: Gradient Accumulation and Velocity</h2>
+
+        <h3>117. Why ordinary SGD can be inefficient</h3>
+        <p>
+          Ordinary Stochastic Gradient Descent updates parameters using the current gradient. Each update is independent of the previous gradient:
+        </p>
+        \[ \theta_t = \theta_{t-1} - \eta g_t \]
+        <p>
+          Here, \(g_t\) is the gradient at the current training step and \(\eta\) is the learning rate.
+        </p>
+        <p>
+          This means SGD does not explicitly retain information about the direction of previous updates. When gradients fluctuate significantly between successive batches, the parameter updates can also fluctuate.
+        </p>
+
+        <h3>118. Introducing momentum</h3>
+        <p>
+          Momentum addresses this by maintaining a running accumulation of previous gradients. This accumulated quantity is commonly called velocity.
+        </p>
+        \[ v_t = \mu v_{t-1} + g_t \]
+        <p>
+          The parameter update becomes:
+        </p>
+        \[ \theta_t = \theta_{t-1} - \eta v_t \]
+        <p>
+          The momentum coefficient \(\mu\) determines how much of the previous velocity is retained. A larger value gives more weight to previous gradients.
+        </p>
+        <p>
+          When successive gradients point in similar directions, their accumulated effect increases the update magnitude. When gradients fluctuate, the accumulated velocity can smooth some of that variation.
+        </p>
+
+        <h3>119. Normalised momentum variant</h3>
+        <p>
+          In NeuralEngine, MomentumSGD also supports a normalised accumulation mode. Instead of adding the entire current gradient, it uses an exponential moving average:
+        </p>
+        \[ v_t = \mu v_{t-1} + (1-\mu)g_t \]
+        <p>
+          The parameter update remains:
+        </p>
+        \[ \theta_t = \theta_{t-1} - \eta v_t \]
+        <p>
+          The factor \(1-\mu\) makes the accumulated value an exponentially weighted average of past gradients rather than their unnormalised accumulation.
+        </p>
+        <p>
+          These are two different update conventions. The normalised variant should not be confused with the classical momentum equation.
+        </p>
+
+        <h3>120. Implementing MomentumSGD in NeuralEngine</h3>
+        <p>
+          MomentumSGD maintains separate velocity arrays for weights and biases. Since different Dense layers have different parameters, each layer needs its own optimiser state.
+        </p>
+        <pre><code>struct VelocityState {
     std::vector&lt;float&gt; weight_velocity;
     std::vector&lt;float&gt; bias_velocity;
 };
 
 std::unordered_map&lt;Dense*, VelocityState&gt; dense_states_;
 std::unordered_map&lt;BatchNorm*, VelocityState&gt; norm_states_;</code></pre>
+        <p>
+          The maps associate each layer's address with its corresponding optimiser state. This allows one MomentumSGD instance to update multiple layers without mixing their velocities.
+        </p>
+        <p>
+          For a Dense layer, the implementation maintains separate velocity values for the weight and bias gradients. In normalised mode:
+        </p>
+        \[ v_t = \mu v_{t-1} + (1-\mu)g_t \]
+        <p>
+          In classical mode:
+        </p>
+        \[ v_t = \mu v_{t-1} + g_t \]
+        <p>
+          The resulting velocity is multiplied by the learning rate and subtracted from the corresponding parameter.
+        </p>
 
-  <p>
-    The maps associate each layer's address with its corresponding
-    optimiser state. This allows one MomentumSGD instance to update
-    multiple layers without mixing their velocities.
-  </p>
+        <h3>121. Applying momentum to BatchNorm</h3>
+        <p>
+          BatchNorm contains two trainable parameter vectors:
+        </p>
+        <ul>
+          <li>\(\gamma\): learned scaling parameters.</li>
+          <li>\(\beta\): learned shifting parameters.</li>
+        </ul>
+        <p>
+          MomentumSGD applies the same update mechanism to their gradients. The velocity arrays associated with \(\gamma\) and \(\beta\) are stored independently.
+        </p>
+        <p>
+          This is important because BatchNorm parameters are trainable parameters too. They must receive optimiser updates just like Dense weights and biases.
+        </p>
 
-  <p>
-    For a Dense layer, the implementation maintains separate velocity
-    values for the weight and bias gradients. In normalised mode:
-  </p>
+        <h3>122. MomentumSGD summary</h3>
+        <table>
+          <thead>
+            <tr><th>Property</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Stored state</td><td>Previous gradient accumulation</td></tr>
+            <tr><td>State type</td><td>Velocity vectors</td></tr>
+            <tr><td>Learning rate</td><td>Controls update magnitude</td></tr>
+            <tr><td>Momentum</td><td>Controls retained gradient history</td></tr>
+            <tr><td>Supported layers</td><td>Dense and BatchNorm</td></tr>
+          </tbody>
+        </table>
+      </section>
 
-  \[
-    v_t = \mu v_{t-1} + (1-\mu)g_t
-  \]
+      <!-- PART XXXIV -->
+      <section id="part-34">
+        <h2>Part XXXIV — RMSProp: Adaptive Learning Rates</h2>
 
-  <p>
-    In classical mode:
-  </p>
+        <h3>123. The problem with a single learning rate</h3>
+        <p>
+          Standard SGD applies the same learning rate to every parameter. However, different parameters can have gradients with significantly different magnitudes.
+        </p>
+        <p>
+          A learning rate that works well for one parameter may produce excessively large updates for another. RMSProp addresses this by adapting the effective learning rate independently for each parameter.
+        </p>
 
-  \[
-    v_t = \mu v_{t-1} + g_t
-  \]
+        <h3>124. Exponential moving average of squared gradients</h3>
+        <p>
+          Instead of accumulating raw gradients like MomentumSGD, RMSProp maintains an exponential moving average of squared gradients:
+        </p>
+        \[ v_t = \rho v_{t-1} + (1-\rho)g_t^2 \]
+        <p>
+          Here:
+        </p>
+        <ul>
+          <li>\(v_t\): running average of squared gradients.</li>
+          <li>\(g_t\): current gradient.</li>
+          <li>\(\rho\): decay coefficient.</li>
+        </ul>
+        <p>
+          Squaring the gradient removes its sign. Consequently, this accumulator tracks the recent scale of gradients rather than their direction.
+        </p>
+        <p>
+          The decay coefficient determines how quickly older squared gradients lose influence. A larger \(\rho\) retains more historical information.
+        </p>
 
-  <p>
-    The resulting velocity is multiplied by the learning rate and
-    subtracted from the corresponding parameter.
-  </p>
+        <h3>125. Adaptive parameter update</h3>
+        <p>
+          The accumulated squared gradient is used to scale the current gradient:
+        </p>
+        \[ \theta_t = \theta_{t-1} - \frac{\eta g_t}{\sqrt{v_t}+\epsilon} \]
+        <p>
+          The square root brings the accumulator back to the gradient's scale. The small positive \(\epsilon\) prevents division by zero and improves numerical stability.
+        </p>
+        <p>
+          When a parameter consistently receives large gradients, its denominator tends to become larger, reducing its effective update. Parameters with smaller gradient magnitudes can receive relatively larger updates.
+        </p>
 
-  <h3>121. Applying momentum to BatchNorm</h3>
-
-  <p>
-    BatchNorm contains two trainable parameter vectors:
-  </p>
-
-  <ul>
-    <li>\(\gamma\): learned scaling parameters.</li>
-    <li>\(\beta\): learned shifting parameters.</li>
-  </ul>
-
-  <p>
-    MomentumSGD applies the same update mechanism to their gradients.
-    The velocity arrays associated with \(\gamma\) and \(\beta\) are
-    stored independently.
-  </p>
-
-  <p>
-    This is important because BatchNorm parameters are trainable
-    parameters too. They must receive optimiser updates just like
-    Dense weights and biases.
-  </p>
-
-  <h3>122. MomentumSGD summary</h3>
-
-  <table>
-    <thead>
-      <tr><th>Property</th><th>Description</th></tr>
-    </thead>
-    <tbody>
-      <tr><td>Stored state</td><td>Previous gradient accumulation</td></tr>
-      <tr><td>State type</td><td>Velocity vectors</td></tr>
-      <tr><td>Learning rate</td><td>Controls update magnitude</td></tr>
-      <tr><td>Momentum</td><td>Controls retained gradient history</td></tr>
-      <tr><td>Supported layers</td><td>Dense and BatchNorm</td></tr>
-    </tbody>
-  </table>
-</section>
-
-
-<!-- PART XXXIV -->
-<section id="part-34">
-  <h2>Part XXXIV — RMSProp: Adaptive Learning Rates</h2>
-
-  <h3>123. The problem with a single learning rate</h3>
-
-  <p>
-    Standard SGD applies the same learning rate to every parameter.
-    However, different parameters can have gradients with significantly
-    different magnitudes.
-  </p>
-
-  <p>
-    A learning rate that works well for one parameter may produce
-    excessively large updates for another. RMSProp addresses this by
-    adapting the effective learning rate independently for each parameter.
-  </p>
-
-  <h3>124. Exponential moving average of squared gradients</h3>
-
-  <p>
-    Instead of accumulating raw gradients like MomentumSGD, RMSProp
-    maintains an exponential moving average of squared gradients:
-  </p>
-
-  \[
-    v_t = \rho v_{t-1} + (1-\rho)g_t^2
-  \]
-
-  <p>
-    Here:
-  </p>
-
-  <ul>
-    <li>\(v_t\): running average of squared gradients.</li>
-    <li>\(g_t\): current gradient.</li>
-    <li>\(\rho\): decay coefficient.</li>
-  </ul>
-
-  <p>
-    Squaring the gradient removes its sign. Consequently, this accumulator
-    tracks the recent scale of gradients rather than their direction.
-  </p>
-
-  <p>
-    The decay coefficient determines how quickly older squared gradients
-    lose influence. A larger \(\rho\) retains more historical information.
-  </p>
-
-  <h3>125. Adaptive parameter update</h3>
-
-  <p>
-    The accumulated squared gradient is used to scale the current gradient:
-  </p>
-
-  \[
-    \theta_t =
-    \theta_{t-1} -
-    \frac{\eta g_t}{\sqrt{v_t}+\epsilon}
-  \]
-
-  <p>
-    The square root brings the accumulator back to the gradient's scale.
-    The small positive \(\epsilon\) prevents division by zero and improves
-    numerical stability.
-  </p>
-
-  <p>
-    When a parameter consistently receives large gradients, its
-    denominator tends to become larger, reducing its effective update.
-    Parameters with smaller gradient magnitudes can receive relatively
-    larger updates.
-  </p>
-
-  <h3>126. Implementing RMSProp in NeuralEngine</h3>
-
-  <p>
-    The implementation follows the same general architecture as
-    MomentumSGD. It maintains separate state for Dense and BatchNorm
-    layers using unordered maps.
-  </p>
-
-  <p>
-    Each state contains two arrays:
-  </p>
-
-  <pre><code>struct VelocityState {
+        <h3>126. Implementing RMSProp in NeuralEngine</h3>
+        <p>
+          The implementation follows the same general architecture as MomentumSGD. It maintains separate state for Dense and BatchNorm layers using unordered maps.
+        </p>
+        <p>
+          Each state contains two arrays:
+        </p>
+        <pre><code>struct VelocityState {
     std::vector&lt;float&gt; weight_velocity;
     std::vector&lt;float&gt; bias_velocity;
 };</code></pre>
+        <p>
+          Despite their names, these arrays do not contain velocities. They contain exponential moving averages of squared gradients. The names were retained to keep the implementation consistent with the existing MomentumSGD structure.
+        </p>
+        <p>
+          For every weight, the implementation first updates its squared-gradient accumulator:
+        </p>
+        \[ v_t = \rho v_{t-1} + (1-\rho)g_t^2 \]
+        <p>
+          It then updates the weight using the current gradient and the accumulator. Biases follow exactly the same procedure using their own gradients and accumulator.
+        </p>
+        <p>
+          In the implementation, the variable named <code>momentum_</code> represents the RMSProp decay coefficient \(\rho\), not classical momentum. The implementation also uses a small epsilon value to stabilise the denominator.
+        </p>
 
-  <p>
-    Despite their names, these arrays do not contain velocities.
-    They contain exponential moving averages of squared gradients.
-    The names were retained to keep the implementation consistent with
-    the existing MomentumSGD structure.
-  </p>
+        <h3>127. RMSProp and BatchNorm</h3>
+        <p>
+          RMSProp also updates the trainable BatchNorm parameters \(\gamma\) and \(\beta\).
+        </p>
+        <p>
+          Each parameter has its own squared-gradient accumulator. The gamma accumulator uses the squared gamma gradient, while the beta accumulator uses the squared beta gradient.
+        </p>
+        <p>
+          These accumulators must remain independent. Combining the two gradients would incorrectly mix the optimisation histories of unrelated parameters.
+        </p>
 
-  <p>
-    For every weight, the implementation first updates its squared-gradient
-    accumulator:
-  </p>
+        <h3>128. RMSProp summary</h3>
+        <table>
+          <thead>
+            <tr><th>Property</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Stored state</td><td>Moving average of squared gradients</td></tr>
+            <tr><td>State type</td><td>Second raw moment estimate</td></tr>
+            <tr><td>Decay coefficient</td><td>\(\rho\)</td></tr>
+            <tr><td>Epsilon</td><td>Prevents division by zero</td></tr>
+            <tr><td>Learning rate</td><td>Adapted per parameter</td></tr>
+            <tr><td>Supported layers</td><td>Dense and BatchNorm</td></tr>
+          </tbody>
+        </table>
+      </section>
 
-  \[
-    v_t = \rho v_{t-1} + (1-\rho)g_t^2
-  \]
+      <!-- PART XXXV -->
+      <section id="part-35">
+        <h2>Part XXXV — Adam: Combining First and Second Moments</h2>
 
-  <p>
-    It then updates the weight using the current gradient and the
-    accumulator. Biases follow exactly the same procedure using their
-    own gradients and accumulator.
-  </p>
+        <h3>129. Combining Momentum and RMSProp</h3>
+        <p>
+          MomentumSGD and RMSProp maintain different kinds of information. MomentumSGD tracks gradient direction, while RMSProp tracks gradient magnitude through squared gradients.
+        </p>
+        <p>
+          Adam, short for Adaptive Moment Estimation, combines both ideas. It maintains two exponentially weighted moving averages:
+        </p>
+        <ul>
+          <li>First moment: average of gradients.</li>
+          <li>Second moment: average of squared gradients.</li>
+        </ul>
 
-  <p>
-    In the implementation, the variable named <code>momentum_</code>
-    represents the RMSProp decay coefficient \(\rho\), not classical
-    momentum. The implementation also uses a small epsilon value
-    to stabilise the denominator.
-  </p>
+        <h3>130. First moment estimate</h3>
+        <p>
+          The first moment estimate is calculated as:
+        </p>
+        \[ m_t = \beta_1m_{t-1}+(1-\beta_1)g_t \]
+        <p>
+          This is an exponentially weighted average of the gradients. It retains information about their direction and magnitude.
+        </p>
 
-  <h3>127. RMSProp and BatchNorm</h3>
+        <h3>131. Second moment estimate</h3>
+        <p>
+          The second moment estimate is:
+        </p>
+        \[ v_t = \beta_2v_{t-1}+(1-\beta_2)g_t^2 \]
+        <p>
+          Unlike the first moment, this tracks the average squared gradient. It provides a measure of recent gradient magnitude.
+        </p>
 
-  <p>
-    RMSProp also updates the trainable BatchNorm parameters \(\gamma\)
-    and \(\beta\).
-  </p>
+        <h3>132. Bias correction</h3>
+        <p>
+          Both moving averages are initialised to zero. During the first optimisation steps, this initialisation biases their estimates towards zero.
+        </p>
+        <p>
+          Adam compensates for this using bias correction:
+        </p>
+        \[ \hat{m}_t = \frac{m_t}{1-\beta_1^t} \]
+        \[ \hat{v}_t = \frac{v_t}{1-\beta_2^t} \]
+        <p>
+          Here, \(t\) is the optimiser timestep. As the timestep increases, the correction factors approach one, reducing the influence of the zero initialisation.
+        </p>
 
-  <p>
-    Each parameter has its own squared-gradient accumulator. The
-    gamma accumulator uses the squared gamma gradient, while the
-    beta accumulator uses the squared beta gradient.
-  </p>
+        <h3>133. Adam parameter update</h3>
+        <p>
+          The bias-corrected estimates are combined to calculate the update:
+        </p>
+        \[ \theta_t = \theta_{t-1} - \eta\frac{\hat{m}_t}{\sqrt{\hat{v}_t}+\epsilon} \]
+        <p>
+          The first moment supplies the direction of the update, while the second moment scales it according to recent squared-gradient magnitudes.
+        </p>
 
-  <p>
-    These accumulators must remain independent. Combining the two
-    gradients would incorrectly mix the optimisation histories of
-    unrelated parameters.
-  </p>
-
-  <h3>128. RMSProp summary</h3>
-
-  <table>
-    <thead>
-      <tr><th>Property</th><th>Description</th></tr>
-    </thead>
-    <tbody>
-      <tr><td>Stored state</td><td>Moving average of squared gradients</td></tr>
-      <tr><td>State type</td><td>Second raw moment estimate</td></tr>
-      <tr><td>Decay coefficient</td><td>\(\rho\)</td></tr>
-      <tr><td>Epsilon</td><td>Prevents division by zero</td></tr>
-      <tr><td>Learning rate</td><td>Adapted per parameter</td></tr>
-      <tr><td>Supported layers</td><td>Dense and BatchNorm</td></tr>
-    </tbody>
-  </table>
-</section>
-
-
-<!-- PART XXXV -->
-<section id="part-35">
-  <h2>Part XXXV — Adam: Combining First and Second Moments</h2>
-
-  <h3>129. Combining Momentum and RMSProp</h3>
-
-  <p>
-    MomentumSGD and RMSProp maintain different kinds of information.
-    MomentumSGD tracks gradient direction, while RMSProp tracks gradient
-    magnitude through squared gradients.
-  </p>
-
-  <p>
-    Adam, short for Adaptive Moment Estimation, combines both ideas.
-    It maintains two exponentially weighted moving averages:
-  </p>
-
-  <ul>
-    <li>First moment: average of gradients.</li>
-    <li>Second moment: average of squared gradients.</li>
-  </ul>
-
-  <h3>130. First moment estimate</h3>
-
-  <p>
-    The first moment estimate is calculated as:
-  </p>
-
-  \[
-    m_t = \beta_1m_{t-1}+(1-\beta_1)g_t
-  \]
-
-  <p>
-    This is an exponentially weighted average of the gradients.
-    It retains information about their direction and magnitude.
-  </p>
-
-  <h3>131. Second moment estimate</h3>
-
-  <p>
-    The second moment estimate is:
-  </p>
-
-  \[
-    v_t = \beta_2v_{t-1}+(1-\beta_2)g_t^2
-  \]
-
-  <p>
-    Unlike the first moment, this tracks the average squared gradient.
-    It provides a measure of recent gradient magnitude.
-  </p>
-
-  <h3>132. Bias correction</h3>
-
-  <p>
-    Both moving averages are initialised to zero. During the first
-    optimisation steps, this initialisation biases their estimates
-    towards zero.
-  </p>
-
-  <p>
-    Adam compensates for this using bias correction:
-  </p>
-
-  \[
-    \hat{m}_t = \frac{m_t}{1-\beta_1^t}
-  \]
-
-  \[
-    \hat{v}_t = \frac{v_t}{1-\beta_2^t}
-  \]
-
-  <p>
-    Here, \(t\) is the optimiser timestep. As the timestep increases,
-    the correction factors approach one, reducing the influence of
-    the zero initialisation.
-  </p>
-
-  <h3>133. Adam parameter update</h3>
-
-  <p>
-    The bias-corrected estimates are combined to calculate the update:
-  </p>
-
-  \[
-    \theta_t =
-    \theta_{t-1} -
-    \eta\frac{\hat{m}_t}{\sqrt{\hat{v}_t}+\epsilon}
-  \]
-
-  <p>
-    The first moment supplies the direction of the update, while the
-    second moment scales it according to recent squared-gradient
-    magnitudes.
-  </p>
-
-  <h3>134. Implementing Adam in NeuralEngine</h3>
-
-  <p>
-    Adam requires more state than either MomentumSGD or RMSProp.
-    Each trainable parameter needs two accumulators: one for its
-    first moment and another for its second moment.
-  </p>
-
-  <pre><code>struct AdamState {
+        <h3>134. Implementing Adam in NeuralEngine</h3>
+        <p>
+          Adam requires more state than either MomentumSGD or RMSProp. Each trainable parameter needs two accumulators: one for its first moment and another for its second moment.
+        </p>
+        <pre><code>struct AdamState {
     std::vector&lt;float&gt; weight_m;
     std::vector&lt;float&gt; bias_m;
     std::vector&lt;float&gt; weight_v;
     std::vector&lt;float&gt; bias_v;
 };</code></pre>
+        <p>
+          The implementation maintains separate state maps for Dense and BatchNorm layers. Each layer therefore has independent first and second moment estimates for its parameters.
+        </p>
+        <p>
+          For Dense layers, the weight and bias gradients update their corresponding moment arrays. The bias-corrected values are then used in the parameter updates.
+        </p>
+        <p>
+          BatchNorm follows the same process. Its gamma and beta parameters each maintain independent first and second moment estimates.
+        </p>
 
-  <p>
-    The implementation maintains separate state maps for Dense and
-    BatchNorm layers. Each layer therefore has independent first and
-    second moment estimates for its parameters.
-  </p>
+        <h3>135. Adam timestep and implementation detail</h3>
+        <p>
+          Bias correction depends on the number of updates received by a parameter. The timestep must therefore advance once per update of that parameter, not once for every individual weight or bias.
+        </p>
+        <p>
+          In an implementation where the optimiser is called separately for each layer, a timestep stored inside each layer's AdamState is a straightforward solution. Each layer advances its own timestep whenever its parameters are updated.
+        </p>
+        <p>
+          A single global timestep incremented inside every layer's <code>step()</code> call would advance multiple times during one training batch. That would produce incorrect bias-correction factors when several layers are updated in succession.
+        </p>
 
-  <p>
-    For Dense layers, the weight and bias gradients update their
-    corresponding moment arrays. The bias-corrected values are then
-    used in the parameter updates.
-  </p>
+        <h3>136. Adam summary</h3>
+        <table>
+          <thead>
+            <tr><th>Property</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>First moment</td><td>Moving average of gradients</td></tr>
+            <tr><td>Second moment</td><td>Moving average of squared gradients</td></tr>
+            <tr><td>Bias correction</td><td>Compensates for zero initialisation</td></tr>
+            <tr><td>\(\beta_1\)</td><td>First moment decay coefficient</td></tr>
+            <tr><td>\(\beta_2\)</td><td>Second moment decay coefficient</td></tr>
+            <tr><td>Epsilon</td><td>Numerical stability</td></tr>
+            <tr><td>Supported layers</td><td>Dense and BatchNorm</td></tr>
+          </tbody>
+        </table>
+      </section>
 
-  <p>
-    BatchNorm follows the same process. Its gamma and beta parameters
-    each maintain independent first and second moment estimates.
-  </p>
+      <!-- PART XXXVI -->
+      <section id="part-36">
+        <h2>Part XXXVI — Optimiser State, Implementation and Comparison</h2>
 
-  <h3>135. Adam timestep and implementation detail</h3>
-
-  <p>
-    Bias correction depends on the number of updates received by a
-    parameter. The timestep must therefore advance once per update
-    of that parameter, not once for every individual weight or bias.
-  </p>
-
-  <p>
-    In an implementation where the optimiser is called separately
-    for each layer, a timestep stored inside each layer's AdamState
-    is a straightforward solution. Each layer advances its own
-    timestep whenever its parameters are updated.
-  </p>
-
-  <p>
-    A single global timestep incremented inside every layer's
-    <code>step()</code> call would advance multiple times during
-    one training batch. That would produce incorrect bias-correction
-    factors when several layers are updated in succession.
-  </p>
-
-  <h3>136. Adam summary</h3>
-
-  <table>
-    <thead>
-      <tr><th>Property</th><th>Description</th></tr>
-    </thead>
-    <tbody>
-      <tr><td>First moment</td><td>Moving average of gradients</td></tr>
-      <tr><td>Second moment</td><td>Moving average of squared gradients</td></tr>
-      <tr><td>Bias correction</td><td>Compensates for zero initialisation</td></tr>
-      <tr><td>\(\beta_1\)</td><td>First moment decay coefficient</td></tr>
-      <tr><td>\(\beta_2\)</td><td>Second moment decay coefficient</td></tr>
-      <tr><td>Epsilon</td><td>Numerical stability</td></tr>
-      <tr><td>Supported layers</td><td>Dense and BatchNorm</td></tr>
-    </tbody>
-  </table>
-</section>
-
-
-<!-- PART XXXVI -->
-<section id="part-36">
-  <h2>Part XXXVI — Optimiser State, Implementation and Comparison</h2>
-
-  <h3>137. Why optimiser state belongs to each layer</h3>
-
-  <p>
-    An optimiser does not only calculate parameter updates. It also
-    retains information from previous training steps.
-  </p>
-
-  <p>
-    Consider a network containing several Dense layers. Each layer
-    has different weights, biases, and gradients. Sharing one
-    accumulator across all layers would mix unrelated optimisation
-    histories.
-  </p>
-
-  <p>
-    NeuralEngine solves this by associating each layer with its own
-    optimiser state through an unordered map:
-  </p>
-
-  <pre><code>std::unordered_map&lt;Dense*, OptimizerState&gt; dense_states_;
+        <h3>137. Why optimiser state belongs to each layer</h3>
+        <p>
+          An optimiser does not only calculate parameter updates. It also retains information from previous training steps.
+        </p>
+        <p>
+          Consider a network containing several Dense layers. Each layer has different weights, biases, and gradients. Sharing one accumulator across all layers would mix unrelated optimisation histories.
+        </p>
+        <p>
+          NeuralEngine solves this by associating each layer with its own optimiser state through an unordered map:
+        </p>
+        <pre><code>std::unordered_map&lt;Dense*, OptimizerState&gt; dense_states_;
 std::unordered_map&lt;BatchNorm*, OptimizerState&gt; norm_states_;</code></pre>
+        <p>
+          This allows a single optimiser instance to manage multiple layers while preserving their independent histories.
+        </p>
+        <p>
+          The layer objects must remain at stable memory addresses while their optimiser states are being used. Moving or destroying a layer without handling its associated state can invalidate the map's assumptions.
+        </p>
 
-  <p>
-    This allows a single optimiser instance to manage multiple
-    layers while preserving their independent histories.
-  </p>
+        <h3>138. Initialising optimiser state</h3>
+        <p>
+          When a layer is encountered for the first time, its optimiser state does not yet exist. The implementation creates the state and initialises its vectors to zero.
+        </p>
+        <p>
+          It also checks whether the state vector sizes match the corresponding gradient vectors. If the dimensions differ, the accumulators are reinitialised.
+        </p>
+        <p>
+          This ensures that each parameter has a corresponding state value before the optimiser attempts to update it.
+        </p>
 
-  <p>
-    The layer objects must remain at stable memory addresses while
-    their optimiser states are being used. Moving or destroying a
-    layer without handling its associated state can invalidate
-    the map's assumptions.
-  </p>
+        <h3>139. Comparing the implemented optimisers</h3>
+        <table>
+          <thead>
+            <tr><th>Optimiser</th><th>Stored information</th><th>Adaptive scaling</th><th>Bias correction</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>SGD</td><td>None</td><td>No</td><td>No</td></tr>
+            <tr><td>MomentumSGD</td><td>Gradient accumulation</td><td>No</td><td>No</td></tr>
+            <tr><td>RMSProp</td><td>Squared-gradient average</td><td>Yes</td><td>No</td></tr>
+            <tr><td>Adam</td><td>First and second moments</td><td>Yes</td><td>Yes</td></tr>
+          </tbody>
+        </table>
 
-  <h3>138. Initialising optimiser state</h3>
+        <h3>140. Comparing optimisers experimentally</h3>
+        <p>
+          Implementing multiple optimisers makes it possible to investigate how their different update rules affect NeuralEngine's training. However, comparing their results requires controlled experiments.
+        </p>
+        <p>
+          Keep the architecture, dataset split, parameter initialisation, batch size, and evaluation procedure consistent whenever possible. Record the learning rate and other optimiser-specific parameters.
+        </p>
+        <p>
+          Useful measurements include:
+        </p>
+        <ul>
+          <li>Training loss per epoch.</li>
+          <li>Mean test cross-entropy.</li>
+          <li>Test accuracy.</li>
+          <li>Number of epochs and optimiser updates.</li>
+          <li>Training time.</li>
+          <li>Occurrence of non-finite losses or gradients.</li>
+        </ul>
+        <p>
+          A higher accuracy does not necessarily imply a lower cross-entropy loss. Accuracy measures classification correctness, whereas cross-entropy also measures the probability assigned to the correct class.
+        </p>
+        <p>
+          An optimiser should therefore not be judged using accuracy alone. Its convergence behaviour, loss curves, computational cost, and stability should also be considered.
+        </p>
 
-  <p>
-    When a layer is encountered for the first time, its optimiser
-    state does not yet exist. The implementation creates the state
-    and initialises its vectors to zero.
-  </p>
-
-  <p>
-    It also checks whether the state vector sizes match the
-    corresponding gradient vectors. If the dimensions differ,
-    the accumulators are reinitialised.
-  </p>
-
-  <p>
-    This ensures that each parameter has a corresponding state
-    value before the optimiser attempts to update it.
-  </p>
-
-  <h3>139. Comparing the implemented optimisers</h3>
-
-  <table>
-    <thead>
-      <tr>
-        <th>Optimiser</th>
-        <th>Stored information</th>
-        <th>Adaptive scaling</th>
-        <th>Bias correction</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td>SGD</td>
-        <td>None</td>
-        <td>No</td>
-        <td>No</td>
-      </tr>
-      <tr>
-        <td>MomentumSGD</td>
-        <td>Gradient accumulation</td>
-        <td>No</td>
-        <td>No</td>
-      </tr>
-      <tr>
-        <td>RMSProp</td>
-        <td>Squared-gradient average</td>
-        <td>Yes</td>
-        <td>No</td>
-      </tr>
-      <tr>
-        <td>Adam</td>
-        <td>First and second moments</td>
-        <td>Yes</td>
-        <td>Yes</td>
-      </tr>
-    </tbody>
-  </table>
-
-  <h3>140. Comparing optimisers experimentally</h3>
-
-  <p>
-    Implementing multiple optimisers makes it possible to investigate
-    how their different update rules affect NeuralEngine's training.
-    However, comparing their results requires controlled experiments.
-  </p>
-
-  <p>
-    Keep the architecture, dataset split, parameter initialisation,
-    batch size, and evaluation procedure consistent whenever possible.
-    Record the learning rate and other optimiser-specific parameters.
-  </p>
-
-  <p>
-    Useful measurements include:
-  </p>
-
-  <ul>
-    <li>Training loss per epoch.</li>
-    <li>Mean test cross-entropy.</li>
-    <li>Test accuracy.</li>
-    <li>Number of epochs and optimiser updates.</li>
-    <li>Training time.</li>
-    <li>Occurrence of non-finite losses or gradients.</li>
-  </ul>
-
-  <p>
-    A higher accuracy does not necessarily imply a lower cross-entropy
-    loss. Accuracy measures classification correctness, whereas
-    cross-entropy also measures the probability assigned to the
-    correct class.
-  </p>
-
-  <p>
-    An optimiser should therefore not be judged using accuracy alone.
-    Its convergence behaviour, loss curves, computational cost, and
-    stability should also be considered.
-  </p>
-
-  <h3>141. Final optimiser equations</h3>
-
-  <table>
-    <thead>
-      <tr><th>Optimiser</th><th>Update rule</th></tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td>SGD</td>
-        <td>\(\theta_t=\theta_{t-1}-\eta g_t\)</td>
-      </tr>
-      <tr>
-        <td>Momentum</td>
-        <td>\(v_t=\mu v_{t-1}+g_t\)</td>
-      </tr>
-      <tr>
-        <td>Normalised momentum</td>
-        <td>\(v_t=\mu v_{t-1}+(1-\mu)g_t\)</td>
-      </tr>
-      <tr>
-        <td>RMSProp</td>
-        <td>\(v_t=\rho v_{t-1}+(1-\rho)g_t^2\)</td>
-      </tr>
-      <tr>
-        <td>Adam first moment</td>
-        <td>\(m_t=\beta_1m_{t-1}+(1-\beta_1)g_t\)</td>
-      </tr>
-      <tr>
-        <td>Adam second moment</td>
-        <td>\(v_t=\beta_2v_{t-1}+(1-\beta_2)g_t^2\)</td>
-      </tr>
-    </tbody>
-  </table>
-
-  <p>
-    These optimisers use different forms of historical gradient
-    information to determine parameter updates. Understanding
-    their state and update equations is essential to implementing
-    them correctly in a neural network engine.
-  </p>
-</section>
-
+        <h3>141. Final optimiser equations</h3>
+        <table>
+          <thead>
+            <tr><th>Optimiser</th><th>Update rule</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>SGD</td><td>\(\theta_t=\theta_{t-1}-\eta g_t\)</td></tr>
+            <tr><td>Momentum</td><td>\(v_t=\mu v_{t-1}+g_t\)</td></tr>
+            <tr><td>Normalised momentum</td><td>\(v_t=\mu v_{t-1}+(1-\mu)g_t\)</td></tr>
+            <tr><td>RMSProp</td><td>\(v_t=\rho v_{t-1}+(1-\rho)g_t^2\)</td></tr>
+            <tr><td>Adam first moment</td><td>\(m_t=\beta_1m_{t-1}+(1-\beta_1)g_t\)</td></tr>
+            <tr><td>Adam second moment</td><td>\(v_t=\beta_2v_{t-1}+(1-\beta_2)g_t^2\)</td></tr>
+          </tbody>
+        </table>
+        <p>
+          These optimisers use different forms of historical gradient information to determine parameter updates. Understanding their state and update equations is essential to implementing them correctly in a neural network engine.
+        </p>
+      </section>
 
       <h3>How to build and run NeuralEngine</h3>
       <p>Requirements: A C++20 compiler and CMake 3.20+.</p>
@@ -3109,13 +1951,10 @@ cd build
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
+  const $ = (id) => document.getElementById(id);
 
-  // --- 1. Lab 1: Scalar SGD ---
-  const w1x = document.getElementById('w1-x');
-  const w1y = document.getElementById('w1-y');
-  const w1w = document.getElementById('w1-w');
-  const w1eta = document.getElementById('w1-eta');
-  const w1out = document.getElementById('w1-out');
+  // --- Lab 1: Scalar SGD ---
+  const w1x = $('w1-x'), w1y = $('w1-y'), w1w = $('w1-w'), w1eta = $('w1-eta'), w1out = $('w1-out');
 
   function updateLab1() {
     if (!w1x || !w1out) return;
@@ -3129,21 +1968,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const loss_new = 0.5 * Math.pow(y_hat_new - y, 2);
 
     w1out.textContent =
-      `Forward:   ŷ = w · x = (${w.toFixed(3)}) · (${x.toFixed(3)}) = ${y_hat.toFixed(4)}\n` +
-      `Loss:      L = 0.5 · (ŷ - y)² = 0.5 · (${y_hat.toFixed(3)} - ${y.toFixed(3)})² = ${loss.toFixed(6)}\n` +
-      `Gradient:  dL/dw = (ŷ - y) · x = (${(y_hat - y).toFixed(3)}) · ${x.toFixed(3)} = ${grad.toFixed(4)}\n` +
+      `Forward:   ŷ = w · x = (${w.toFixed(3)}) · (${x.toFixed(3)}) = ${y_hat.toFixed(4)}\n` +
+      `Loss:      L = 0.5 · (ŷ - y)² = 0.5 · (${y_hat.toFixed(3)} - ${y.toFixed(3)})² = ${loss.toFixed(6)}\n` +
+      `Gradient:  dL/dw = (ŷ - y) · x = (${(y_hat - y).toFixed(3)}) · ${x.toFixed(3)} = ${grad.toFixed(4)}\n` +
       `SGD Step:  w_new = w - η · (dL/dw) = ${w.toFixed(3)} - (${eta.toFixed(3)}) · (${grad.toFixed(3)}) = ${w_new.toFixed(4)}\n` +
-      `Re-eval:   ŷ_new = ${y_hat_new.toFixed(4)}  ==>  New Loss L_new = ${loss_new.toFixed(6)}`;
+      `Re-eval:   ŷ_new = ${y_hat_new.toFixed(4)}  ==>  New Loss L_new = ${loss_new.toFixed(6)}`;
   }
   if (w1x) [w1x, w1y, w1w, w1eta].forEach(el => el.addEventListener('input', updateLab1));
   updateLab1();
 
-  // --- 2. Lab 2: Row-Major Memory Mapping ---
-  const w2r = document.getElementById('w2-r');
-  const w2c = document.getElementById('w2-c');
-  const w2i = document.getElementById('w2-i');
-  const w2j = document.getElementById('w2-j');
-  const w2out = document.getElementById('w2-out');
+  // --- Lab 2: Row-Major Memory Mapping ---
+  const w2r = $('w2-r'), w2c = $('w2-c'), w2i = $('w2-i'), w2j = $('w2-j'), w2out = $('w2-out');
 
   function updateLab2() {
     if (!w2r || !w2out) return;
@@ -3164,12 +1999,8 @@ document.addEventListener('DOMContentLoaded', () => {
   if (w2r) [w2r, w2c, w2i, w2j].forEach(el => el.addEventListener('input', updateLab2));
   updateLab2();
 
-  // --- 3. Lab 3: Log-Sum-Exp & Softmax Gradient ---
-  const w3z0 = document.getElementById('w3-z0');
-  const w3z1 = document.getElementById('w3-z1');
-  const w3z2 = document.getElementById('w3-z2');
-  const w3t  = document.getElementById('w3-target');
-  const w3out = document.getElementById('w3-out');
+  // --- Lab 3: Log-Sum-Exp & Softmax Gradient ---
+  const w3z0 = $('w3-z0'), w3z1 = $('w3-z1'), w3z2 = $('w3-z2'), w3t = $('w3-target'), w3out = $('w3-out');
 
   function updateLab3() {
     if (!w3z0 || !w3out) return;
@@ -3193,285 +2024,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   if (w3z0) [w3z0, w3z1, w3z2, w3t].forEach(el => el.addEventListener('input', updateLab3));
   updateLab3();
-
-  // --- 4. Lab 4: Real Neural Network Canvas Inference ---
-  const canvas = document.getElementById('drawingCanvas');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  const clearBtn = document.getElementById('clearCanvasBtn');
-  const readout = document.getElementById('pixelReadout') || document.getElementById('pixelNormReadout');
-  const barsContainer = document.getElementById('probBars') || document.getElementById('softmaxBars');
-
-  // Build the 10 progress bars in the DOM
-  barsContainer.innerHTML = '';
-  const barElements = [];
-  for (let i = 0; i < 10; ++i) {
-    const row = document.createElement('div');
-    row.className = 'bar-row';
-    row.innerHTML = `
-      <span style="width: 14px;">${i}</span>
-      <div class="bar-outer"><div class="bar-fill" id="barFill_${i}"></div></div>
-      <span style="width: 44px; text-align: right;" id="barVal_${i}">0%</span>
-    `;
-    barsContainer.appendChild(row);
-    barElements.push({
-      fill: row.querySelector(`#barFill_${i}`),
-      val: row.querySelector(`#barVal_${i}`)
-    });
-  }
-
-  // Clear canvas to black
-  ctx.fillStyle = '#000000';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  // --- Model Class & Checkpoint Parser ---
-  let loadedModel = null;
-
-  class NeuralNetwork {
-    constructor(arch) {
-      this.arch = arch;
-      this.layers = []; // { inDim, outDim, weights, bias }
-    }
-
-    forward(input784) {
-      let current = input784;
-      for (let l = 0; l < this.layers.length; l++) {
-        const layer = this.layers[l];
-        const isOutput = (l === this.layers.length - 1);
-        const out = new Float32Array(layer.outDim);
-
-        for (let o = 0; o < layer.outDim; o++) {
-          let sum = layer.bias[o];
-          const rowOffset = o * layer.inDim;
-          for (let i = 0; i < layer.inDim; i++) {
-            sum += layer.weights[rowOffset + i] * current[i];
-          }
-          out[o] = isOutput ? sum : (sum > 0 ? sum : 0); // ReLU on hidden layers
-        }
-        current = out;
-      }
-      return current; // 10 output logits
-    }
-  }
-
-  function parseCheckpointText(text) {
-    const tokens = text.trim().split(/\s+/);
-    let pos = 0;
-
-    if (tokens[pos++] !== "NEURAL_ENGINE_CHECKPOINT") {
-      throw new Error("Missing NEURAL_ENGINE_CHECKPOINT tag");
-    }
-    const version = parseInt(tokens[pos++], 10);
-    if (version !== 1) throw new Error("Unsupported version " + version);
-
-    if (tokens[pos++] !== "ARCHITECTURE") throw new Error("Missing ARCHITECTURE tag");
-    const arch = [];
-    while (pos < tokens.length && tokens[pos] !== "LAYER") {
-      arch.push(parseInt(tokens[pos++], 10));
-    }
-
-    const net = new NeuralNetwork(arch);
-    for (let l = 0; l < arch.length - 1; l++) {
-      if (tokens[pos++] !== "LAYER") throw new Error("Missing LAYER tag");
-      pos++; // skip layer name (e.g. fc1)
-
-      if (tokens[pos++] !== "WEIGHTS") throw new Error("Missing WEIGHTS tag");
-      pos++; // skip rank (2)
-      const outDim = parseInt(tokens[pos++], 10);
-      const inDim = parseInt(tokens[pos++], 10);
-      const wCount = outDim * inDim;
-
-      const weights = new Float32Array(wCount);
-      for (let i = 0; i < wCount; i++) weights[i] = parseFloat(tokens[pos++]);
-
-      if (tokens[pos++] !== "BIAS") throw new Error("Missing BIAS tag");
-      pos++; // skip rank (1)
-      const bDim = parseInt(tokens[pos++], 10);
-
-      const bias = new Float32Array(bDim);
-      for (let i = 0; i < bDim; i++) bias[i] = parseFloat(tokens[pos++]);
-
-      net.layers.push({ inDim, outDim, weights, bias });
-    }
-    return net;
-  }
-
-  // --- Real MNIST Preprocessor (Center of Mass Centering) ---
-  function preprocessDrawing(srcCanvas) {
-    const cctx = srcCanvas.getContext('2d');
-    const imgData = cctx.getImageData(0, 0, srcCanvas.width, srcCanvas.height).data;
-
-    let minX = srcCanvas.width, minY = srcCanvas.height;
-    let maxX = -1, maxY = -1;
-
-    for (let y = 0; y < srcCanvas.height; y++) {
-      for (let x = 0; x < srcCanvas.width; x++) {
-        const idx = (y * srcCanvas.width + x) * 4;
-        if (imgData[idx] > 20 || imgData[idx + 1] > 20) {
-          if (x < minX) minX = x;
-          if (x > maxX) maxX = x;
-          if (y < minY) minY = y;
-          if (y > maxY) maxY = y;
-        }
-      }
-    }
-    if (maxX < 0) return null; // blank canvas
-
-    const bbW = maxX - minX + 1, bbH = maxY - minY + 1;
-    const scale = 20.0 / Math.max(bbW, bbH);
-    const tw = Math.max(1, Math.round(bbW * scale));
-    const th = Math.max(1, Math.round(bbH * scale));
-    const offX = Math.floor((28 - tw) / 2);
-    const offY = Math.floor((28 - th) / 2);
-
-    const frame = new Float32Array(784);
-    for (let ty = 0; ty < th; ty++) {
-      for (let tx = 0; tx < tw; tx++) {
-        const sx = Math.floor(minX + (tx * bbW) / tw);
-        const sy = Math.floor(minY + (ty * bbH) / th);
-        const intensity = imgData[(sy * srcCanvas.width + sx) * 4 + 1]; // read intensity
-        frame[(offY + ty) * 28 + (offX + tx)] = intensity / 255.0;
-      }
-    }
-
-    let mass = 0, cx = 0, cy = 0;
-    for (let y = 0; y < 28; y++) {
-      for (let x = 0; x < 28; x++) {
-        const v = frame[y * 28 + x];
-        mass += v; cx += v * x; cy += v * y;
-      }
-    }
-
-    const shiftX = Math.round(13.5 - cx / mass);
-    const shiftY = Math.round(13.5 - cy / mass);
-    const input784 = new Float32Array(784);
-    let active = 0;
-
-    for (let y = 0; y < 28; y++) {
-      for (let x = 0; x < 28; x++) {
-        const nx = x + shiftX, ny = y + shiftY;
-        if (nx >= 0 && nx < 28 && ny >= 0 && ny < 28) {
-          const val = frame[y * 28 + x];
-          input784[ny * 28 + nx] = val;
-          if (val > 0.05) active++;
-        }
-      }
-    }
-    return { pixels: input784, count: active };
-  }
-
-  // --- Real Inference Execution ---
-  function analyzeCanvas() {
-    if (!loadedModel) {
-      if (readout) readout.textContent = "Loading mnist_model.txt...";
-      return;
-    }
-
-    const prep = preprocessDrawing(canvas);
-    if (!prep || prep.count < 6) {
-      if (readout) readout.textContent = "Draw a digit (Active Pixels: 0 / 784)";
-      barElements.forEach(b => {
-        b.fill.style.width = "0%";
-        b.val.textContent = "0.0%";
-      });
-      return;
-    }
-
-    // Forward pass through the weights
-    const logits = loadedModel.forward(prep.pixels);
-
-    // Numerically stable Softmax
-    const max_l = Math.max(...logits);
-    const exps = logits.map(z => Math.exp(z - max_l));
-    const sum_e = exps.reduce((a, b) => a + b, 0);
-    const probs = exps.map(e => e / sum_e);
-
-    let bestDigit = 0, maxProb = 0;
-    probs.forEach((p, idx) => {
-      const pct = (p * 100).toFixed(1);
-      barElements[idx].fill.style.width = pct + "%";
-      barElements[idx].val.textContent = pct + "%";
-      if (p > maxProb) {
-        maxProb = p;
-        bestDigit = idx;
-      }
-    });
-
-    if (readout) {
-      readout.textContent = `Predicted Digit: ${bestDigit} (${(maxProb * 100).toFixed(1)}% confidence)`;
-    }
-  }
-
-  // Mouse drawing listeners
-  let drawing = false;
-  function getPos(e) {
-    const r = canvas.getBoundingClientRect();
-    return { x: e.clientX - r.left, y: e.clientY - r.top };
-  }
-
-  canvas.addEventListener('mousedown', (e) => {
-    drawing = true;
-    const p = getPos(e);
-    ctx.beginPath();
-    ctx.moveTo(p.x, p.y);
-  });
-  window.addEventListener('mouseup', () => {
-    if (drawing) {
-      drawing = false;
-      ctx.beginPath();
-      analyzeCanvas();
-    }
-  });
-  canvas.addEventListener('mousemove', (e) => {
-    if (!drawing) return;
-    const p = getPos(e);
-    ctx.lineWidth = 11;
-    ctx.lineCap = 'round';
-    ctx.strokeStyle = '#ffffff'; // White drawing ink
-    ctx.lineTo(p.x, p.y);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(p.x, p.y);
-    analyzeCanvas();
-  });
-
-  if (clearBtn) {
-    clearBtn.addEventListener('click', () => {
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.beginPath();
-      analyzeCanvas();
-    });
-  }
-
-  // --- Auto-Load Checkpoint with Local File Fallback ---
-  fetch("mnist_model.txt")
-    .then(res => {
-      if (!res.ok) throw new Error("HTTP " + res.status);
-      return res.text();
-    })
-    .then(text => {
-      loadedModel = parseCheckpointText(text);
-      if (readout) readout.textContent = "Model loaded from mnist_model.txt. Ready!";
-    })
-    .catch(() => {
-      // Fallback: If opened directly via file://, browser blocks fetch. Provide a file picker.
-      if (readout) {
-        readout.innerHTML = `Select <code>mnist_model.txt</code>: <input type="file" id="ckptPicker">`;
-        const picker = document.getElementById("ckptPicker");
-        if (picker) {
-          picker.addEventListener("change", (ev) => {
-            const file = ev.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = (re) => {
-              loadedModel = parseCheckpointText(re.target.result);
-              readout.textContent = "Model loaded successfully! Draw a digit.";
-              analyzeCanvas();
-            };
-            reader.readAsText(file);
-          });
-        }
-      }
-    });
 });
 </script>
+</body>
+</html>
