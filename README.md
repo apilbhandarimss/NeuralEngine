@@ -409,6 +409,104 @@ The graph provides a visual comparison of how each optimiser minimises the loss 
 Comparing these curves helps illustrate differences in convergence speed, training stability, and final loss.
 
 All optimisers were evaluated using the same network architecture and dataset to make the comparison meaningful.
+## Experimental Results
+
+The optimiser, architecture, learning-rate and batch-size experiments were analysed with the interactive dashboard in `neuralengine-lab/`. All results use MNIST (30,000 training and 5,000 validation samples), up to 10 epochs per run, and a full grid of:
+
+- **Optimisers:** SGD, MomentumSGD, RMSprop, Adam
+- **Architectures:** 784-4-10, 784-8-10, 784-4-4-10, 784-4-8-10, 784-8-4-10, 784-8-8-10
+- **Learning rates:** 0.001, 0.01, 0.1
+- **Batch sizes:** 8 to 4096
+
+Unless stated otherwise, accuracy is final-epoch validation accuracy, and curves show the median over all other settings. Because medians pool across settings, they hide structure, and the per-learning-rate plots below should be read alongside them.
+
+### What Explains the Variation?
+
+<p align="center">
+  <img src="Img/plot-image(7).png" alt="Share of total variance (eta squared) per factor and interaction" width="720">
+</p>
+
+η² is the share of the total variance in accuracy that lines up with each factor or pair of factors on this grid. It is descriptive only: there is no significance test, and with one run per configuration the "higher-order + noise" term cannot be split further.
+
+- **Optimiser × learning rate** is the largest term by far (40.5 %). Learning rate on its own explains only 1.6 %. The best learning rate therefore depends on which optimiser is used.
+- **Batch size** (11.1 %), **architecture** (9.6 %) and **optimiser** (7.6 %) each have a moderate main effect.
+- **Optimiser × batch size** (8.3 %) is the next largest interaction.
+- Architecture interactions are small (≤ 1 %).
+
+### Optimiser Comparison
+
+<p align="center">
+  <img src="Img/plot-image(2).png" alt="Median validation accuracy per epoch for each optimiser" width="760">
+</p>
+
+Median validation accuracy over all configurations. Bands show the inter-quartile range.
+
+- Adam has the highest median at every epoch (about 37 % at epoch 1 and 75 % at epoch 10).
+- SGD and MomentumSGD behave almost identically (about 67 % and 65 % at epoch 10) and are still rising at epoch 10.
+- RMSprop's median stays low (about 21 % at epoch 10), and its band reaches down to chance level (about 10 %).
+- The bands overlap heavily, so the optimiser alone does not separate runs. This agrees with its modest main effect in the η² chart.
+
+<p align="center">
+  <img src="Img/plot-image(8).png" alt="Epochs to reach 82 percent accuracy and share of runs that reached it" width="760">
+</p>
+
+The 82 % target is 90 % of the best accuracy observed.
+
+- Only a minority of runs reach 82 % at all: Adam 36 %, SGD 29 %, MomentumSGD 27 %, RMSprop 18 %.
+- Among runs that do reach it, Adam has the lowest median (2 epochs), then RMSprop (2.5), then SGD and MomentumSGD (4).
+- The left panel is conditional on success. RMSprop's fast median reflects the few well-tuned RMSprop runs that succeed, not typical RMSprop behaviour.
+
+### Learning Rate
+
+<p align="center">
+  <img src="Img/plot-image(4).png" alt="Median validation accuracy per epoch, one panel per optimiser, one line per learning rate" width="760">
+</p>
+
+Median over all batch sizes and architectures.
+
+- **SGD and MomentumSGD:** a higher learning rate is better. At epoch 10, lr 0.1 reaches about 81 %, lr 0.01 about 70 % and lr 0.001 about 28 %. The two smaller rates are still improving at epoch 10, so they are limited by the 10-epoch budget rather than converged.
+- **RMSprop:** only lr 0.001 learns well (about 80 %). lr 0.01 reaches about 35 %, and lr 0.1 stays at chance (about 10 %).
+- **Adam:** lr 0.001 and 0.01 both reach about 82–83 %, with 0.01 faster early on. lr 0.1 plateaus at about 30 %.
+- The best learning rate sits at the edge of the tested range for several optimisers (0.1 for SGD and MomentumSGD, 0.001 for RMSprop), so the true optimum may lie outside the grid.
+
+### Batch Size
+
+<p align="center">
+  <img src="Img/plot-image(5).png" alt="Median validation accuracy against batch size per optimiser" width="480">
+</p>
+
+Median accuracy falls as batch size grows for every optimiser. The wide inter-quartile bands show that this pooled view hides strong dependence on the learning rate (next two figures).
+
+<p align="center">
+  <img src="Img/plot-image(6).png" alt="Median accuracy for each optimiser and batch size" width="720">
+</p>
+
+- SGD and MomentumSGD are best at small batches (about 84 % at batch 8) but degrade steadily, to about 18 % and 17 % at batch 4096.
+- Adam is flatter. It stays between about 75 % and 82 % up to batch 1024, then falls to about 56 % at 2048 and 50 % at 4096. At batch 2048 and above it is the best optimiser in this pooled view.
+- RMSprop's pooled median is low at every batch size. Part of that is the learning rate (see below), because one of its three learning rates never learns.
+
+<p align="center">
+  <img src="Img/plot-image(3).png" alt="Accuracy against batch size, one panel per optimiser, one line per learning rate" width="760">
+</p>
+
+- **SGD and MomentumSGD:** lr 0.1 holds roughly 80–86 % up to batch 512 and drops at larger batches (about 50 % and 38 % at 4096). lr 0.001 falls from about 79 % at batch 8 to about 13 % at batch 4096. Larger batches mean fewer parameter updates in a fixed 10-epoch budget, which is consistent with this pattern, though these plots do not test that directly.
+- **RMSprop:** lr 0.001 stays high (about 83–86 % at small batches, about 63 % at 4096). lr 0.01 drops sharply between batch 32 and 64 (about 65 % to 24 %). lr 0.1 never leaves chance at any batch size.
+- **Adam:** lr 0.001 and 0.01 stay at roughly 80–87 % up to batch 128–512 and fall at larger batches. lr 0.1 is near chance at batch 8 and improves with batch size (to about 55 % at 2048), so very large batches may partly compensate for a too-high learning rate.
+
+### Summary
+
+1. The best learning rate depends on the optimiser, so optimisers should be compared at their own best learning rate, not at a shared one.
+2. SGD and MomentumSGD gave the highest accuracy at small batches with the largest learning rate tested.
+3. Adam was the most robust to batch size and learning rate, apart from lr 0.1 at small batches.
+4. RMSprop was only competitive at lr 0.001.
+5. Large batches hurt every optimiser under a fixed 10-epoch budget.
+
+### Limitations
+
+- Each configuration is a **single run** (no repeated seeds), so small differences may be within run-to-run noise.
+- The conclusions apply to **small networks (4–8 hidden units) on MNIST**, trained for a **fixed 10 epochs**. Under-trained settings (for example SGD at lr 0.001) may look much better with more epochs.
+- Learning rates were sampled at three values, and the best value for several optimisers lies at the edge of that range.
+- η² and the correlation analyses describe association on this grid and do not establish causes.
 
 #### 6.6 Learning-rate considerations
 

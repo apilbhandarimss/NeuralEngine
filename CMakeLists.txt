@@ -4,6 +4,7 @@ project(NeuralEngine VERSION 0.1.0 LANGUAGES CXX)
 
 option(NEURAL_BUILD_TESTS "Build the test suite" ON)
 option(NEURAL_BUILD_EXAMPLES "Build examples" ON)
+option(NEURAL_BUILD_EXPERIMENTS "Build experiments" ON)
 option(NEURAL_BUILD_STUDIO "Build the Raylib Studio GUI" ON)
 
 add_library(neural_engine
@@ -45,6 +46,7 @@ else()
     )
 endif()
 
+# Tests
 if(NEURAL_BUILD_TESTS)
     enable_testing()
 
@@ -58,9 +60,10 @@ if(NEURAL_BUILD_TESTS)
         tests/test_gradients.cpp
     )
     target_link_libraries(neural_gradient_tests PRIVATE neural_engine)
-    add_test(NAME neural_gradient_tests COMMAND neural_engine_tests)
+    add_test(NAME neural_gradient_tests COMMAND neural_engine)
 endif()
 
+# Examples
 if(NEURAL_BUILD_EXAMPLES)
     add_executable(basic_example
         examples/basic.cpp
@@ -73,6 +76,35 @@ if(NEURAL_BUILD_EXAMPLES)
     target_link_libraries(basic_example2 PRIVATE neural_engine)
 endif()
 
+# Experiments
+if(NEURAL_BUILD_EXPERIMENTS)
+    find_package(raylib CONFIG REQUIRED)
+
+    add_executable(exp1
+        exps/exp1.cpp
+    )
+
+    target_compile_features(exp1 PRIVATE cxx_std_20)
+
+    set_target_properties(exp1 PROPERTIES
+        CXX_EXTENSIONS OFF
+    )
+
+    if(MSVC)
+        target_compile_options(exp1 PRIVATE /W4 /permissive-)
+    else()
+        target_compile_options(exp1 PRIVATE
+            -Wall -Wextra -Wpedantic -Wconversion -Wshadow
+        )
+    endif()
+
+    target_link_libraries(exp1 PRIVATE
+        neural_engine
+        raylib
+    )
+endif()
+
+# Raylib Studio
 if(NEURAL_BUILD_STUDIO)
     find_package(raylib CONFIG REQUIRED)
     find_package(Threads REQUIRED)
@@ -82,6 +114,7 @@ if(NEURAL_BUILD_STUDIO)
     )
 
     target_compile_features(neural_studio PRIVATE cxx_std_20)
+
     set_target_properties(neural_studio PROPERTIES
         CXX_EXTENSIONS OFF
     )
