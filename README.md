@@ -471,6 +471,8 @@ Median over all batch sizes and architectures.
 
 ### Batch Size
 
+### Batch Size
+
 <p align="center">
   <img src="Img/plot-image(5).png" alt="Median validation accuracy against batch size per optimiser" width="480">
 </p>
@@ -481,17 +483,25 @@ Median accuracy falls as batch size grows for every optimiser. The wide inter-qu
   <img src="Img/plot-image(6).png" alt="Median accuracy for each optimiser and batch size" width="720">
 </p>
 
-- SGD and MomentumSGD are best at small batches (about 84 % at batch 8) but degrade steadily, to about 18 % and 17 % at batch 4096.
-- Adam is flatter. It stays between about 75 % and 82 % up to batch 1024, then falls to about 56 % at 2048 and 50 % at 4096. At batch 2048 and above it is the best optimiser in this pooled view.
+- SGD and MomentumSGD are best at small batches (about 84% at batch 8) but degrade steadily, to about 18% and 17% at batch 4096.
+- Adam is flatter. It stays between about 75% and 82% up to batch 1024, then falls to about 56% at 2048 and 50% at 4096. At batch 2048 and above it is the best optimiser in this pooled view.
 - RMSprop's pooled median is low at every batch size. Part of that is the learning rate (see below), because one of its three learning rates never learns.
 
 <p align="center">
   <img src="Img/plot-image(3).png" alt="Accuracy against batch size, one panel per optimiser, one line per learning rate" width="760">
 </p>
 
-- **SGD and MomentumSGD:** lr 0.1 holds roughly 80–86 % up to batch 512 and drops at larger batches (about 50 % and 38 % at 4096). lr 0.001 falls from about 79 % at batch 8 to about 13 % at batch 4096. Larger batches mean fewer parameter updates in a fixed 10-epoch budget, which is consistent with this pattern, though these plots do not test that directly.
-- **RMSprop:** lr 0.001 stays high (about 83–86 % at small batches, about 63 % at 4096). lr 0.01 drops sharply between batch 32 and 64 (about 65 % to 24 %). lr 0.1 never leaves chance at any batch size.
-- **Adam:** lr 0.001 and 0.01 stay at roughly 80–87 % up to batch 128–512 and fall at larger batches. lr 0.1 is near chance at batch 8 and improves with batch size (to about 55 % at 2048), so very large batches may partly compensate for a too-high learning rate.
+- **SGD and MomentumSGD:** lr 0.1 holds roughly 80–86% up to batch 512 and drops at larger batches (about 50% and 38% at 4096). lr 0.001 falls from about 79% at batch 8 to about 13% at batch 4096. Larger batches mean fewer parameter updates in a fixed 10-epoch budget, which is consistent with this pattern, though these plots do not test that directly.
+- **RMSprop:** lr 0.001 stays high (about 83–86% at small batches, about 63% at 4096). lr 0.01 drops sharply between batch 32 and 64 (about 65% to 24%). lr 0.1 never leaves chance at any batch size.
+- **Adam:** lr 0.001 and 0.01 stay at roughly 80–87% up to batch 128–512 and fall at larger batches. lr 0.1 is near chance at batch 8 and improves with batch size (to about 55% at 2048), so very large batches may partly compensate for a too-high learning rate.
+
+**An interesting pattern emerges when comparing the optimisers directly.** Adam does not simply outperform SGD and MomentumSGD across the board. The batch-size plots show almost the opposite at smaller batch sizes: SGD and MomentumSGD reach around 84% median validation accuracy at batch 8, outperforming Adam in that regime. As batch size increases, however, SGD and MomentumSGD deteriorate much more sharply, while Adam maintains comparatively stable accuracy and eventually becomes the strongest optimiser in the pooled comparison at batch sizes of 2048 and above.
+
+This is consistent with a broader observation in the optimisation literature. Wilson et al. (2017), in *The Marginal Value of Adaptive Gradient Methods in Machine Learning*, showed that adaptive methods such as Adam do not universally outperform SGD and can exhibit different generalisation behaviour. Our experiments show a related configuration-dependent pattern: **the relative performance of an optimiser changes with batch size.** SGD and MomentumSGD are more effective in the small-batch regime, whereas Adam is considerably more robust in the large-batch regime.
+
+The results should not be interpreted as a universal ranking of these optimisers. They demonstrate that optimiser performance depends on the interaction between the optimiser, learning rate, and batch size, rather than on the optimiser alone.
+
+Reference: [Wilson et al. (2017) — The Marginal Value of Adaptive Gradient Methods in Machine Learning](https://arxiv.org/abs/1705.08292)
 
 ### Summary
 
