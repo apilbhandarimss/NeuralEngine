@@ -5,7 +5,7 @@
 /exports/
 /.venv/
 /neuralengine-lab/
-/exps/
+
 
 # Compiled binaries and libraries
 *.o
