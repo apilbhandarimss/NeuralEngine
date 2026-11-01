@@ -1,11 +1,22 @@
-
+// compile with: -O3 -march=native -fopenmp -fno-math-errno
+// (do NOT add -ffast-math: it breaks the std::isfinite checks below)
 #include "neural/ops/loss.hpp"
 
 #include <cmath>
+#include <cstddef>
 #include <stdexcept>
 #include <utility>
 
 namespace neural {
+
+namespace {
+
+constexpr int kThreads = 14;
+// exp() makes each element fairly expensive, so the cutoff is lower than
+// for pure element-wise ops.
+constexpr std::size_t kParallelMin = 4096;
+
+} // namespace
 
 LossResult softmax_cross_entropy(
     const Tensor& logits,
@@ -23,43 +34,53 @@ LossResult softmax_cross_entropy(
         );
     }
 
-    const auto input = logits.data();
+    const std::size_t n = logits.size();
+    const float* input = logits.data().data();
 
     float max_logit = input[0];
+    int nonfinite = 0;
 
-    for (const float value : input) {
-        if (!std::isfinite(value)) {
-            throw std::invalid_argument("Logits must be finite");
-        }
+    #pragma omp simd reduction(max : max_logit) reduction(| : nonfinite)
+    for (std::size_t i = 0; i < n; ++i) {
+        const float value = input[i];
 
-        if (value > max_logit) {
-            max_logit = value;
-        }
+        nonfinite |= !std::isfinite(value);
+        max_logit = value > max_logit ? value : max_logit;
     }
 
-    Tensor probabilities({logits.size()}, 0.0F);
-    auto probs = probabilities.data();
+    if (nonfinite) {
+        throw std::invalid_argument("Logits must be finite");
+    }
+
+    Tensor probabilities({n}, 0.0F);
+    Tensor gradient({n}, 0.0F);
+
+    float* probs = probabilities.data().data();
+    float* grad = gradient.data().data();
 
     float exp_sum = 0.0F;
 
-    for (std::size_t i = 0; i < logits.size(); ++i) {
-        probs[i] = std::exp(input[i] - max_logit);
-        exp_sum += probs[i];
+    #pragma omp simd reduction(+ : exp_sum)
+    for (std::size_t i = 0; i < n; ++i) {
+        const float value = std::exp(input[i] - max_logit);
+
+        probs[i] = value;
+        exp_sum += value;
     }
 
-    for (float& probability : probs) {
-        probability /= exp_sum;
+    const float inv_sum = 1.0F / exp_sum;
+
+    // Normalise and copy into the gradient in one pass.
+    #pragma omp simd
+    for (std::size_t i = 0; i < n; ++i) {
+        const float probability = probs[i] * inv_sum;
+
+        probs[i] = probability;
+        grad[i] = probability;
     }
 
     const float loss =
         std::log(exp_sum) + max_logit - input[target];
-
-    Tensor gradient({logits.size()}, 0.0F);
-    auto grad = gradient.data();
-
-    for (std::size_t i = 0; i < logits.size(); ++i) {
-        grad[i] = probs[i];
-    }
 
     grad[target] -= 1.0F;
 
@@ -99,24 +120,37 @@ LossResult softmax_cross_entropy(
     Tensor probabilities(logits.shape(), 0.0F);
     Tensor gradient(logits.shape(), 0.0F);
 
-    const auto input = logits.data();
-    const auto target_values = targets.data();
+    const float* input = logits.data().data();
+    const float* target_values = targets.data().data();
 
-    auto probs = probabilities.data();
-    auto grad = gradient.data();
+    float* probs = probabilities.data().data();
+    float* grad = gradient.data().data();
+
+    // Mean-batch-loss scale, applied while the gradient is written
+    // (no separate pass over the whole gradient afterwards).
+    const float scale = 1.0F / static_cast<float>(batch_size);
+    const float class_count = static_cast<float>(num_classes);
 
     float total_loss = 0.0F;
+    int bad_target = 0;
+    int bad_logit = 0;
 
+    // Exceptions must not escape an OpenMP region, so errors are recorded
+    // in flags (OR-reduced across threads) and thrown after the loop.
+    // Each row b owns probs/grad[b * C .. (b + 1) * C), so there are no races;
+    // total_loss is combined with a reduction.
+    #pragma omp parallel for schedule(static) num_threads(kThreads) \
+        if (batch_size * num_classes > kParallelMin) \
+        reduction(+ : total_loss) reduction(| : bad_target, bad_logit)
     for (std::size_t b = 0; b < batch_size; ++b) {
         const float target_value = target_values[b];
 
         if (!std::isfinite(target_value) ||
             target_value < 0.0F ||
-            target_value >= static_cast<float>(num_classes) ||
+            target_value >= class_count ||
             std::floor(target_value) != target_value) {
-            throw std::invalid_argument(
-                "Each target must be a valid integer class index"
-            );
+            bad_target = 1;
+            continue;
         }
 
         const std::size_t target =
@@ -124,50 +158,65 @@ LossResult softmax_cross_entropy(
 
         const std::size_t offset = b * num_classes;
 
-        float max_logit = input[offset];
+        const float* in = input + offset;
+        float* p = probs + offset;
+        float* g = grad + offset;
 
+        float max_logit = in[0];
+        int nonfinite = 0;
+
+        #pragma omp simd reduction(max : max_logit) reduction(| : nonfinite)
         for (std::size_t j = 0; j < num_classes; ++j) {
-            const float value = input[offset + j];
+            const float value = in[j];
 
-            if (!std::isfinite(value)) {
-                throw std::invalid_argument("Logits must be finite");
-            }
+            nonfinite |= !std::isfinite(value);
+            max_logit = value > max_logit ? value : max_logit;
+        }
 
-            if (value > max_logit) {
-                max_logit = value;
-            }
+        if (nonfinite) {
+            bad_logit = 1;
+            continue;
         }
 
         float exp_sum = 0.0F;
 
+        #pragma omp simd reduction(+ : exp_sum)
         for (std::size_t j = 0; j < num_classes; ++j) {
-            const float value =
-                std::exp(input[offset + j] - max_logit);
+            const float value = std::exp(in[j] - max_logit);
 
-            probs[offset + j] = value;
+            p[j] = value;
             exp_sum += value;
         }
 
+        const float inv_sum = 1.0F / exp_sum;
+
+        // Normalise, store probabilities, and write the scaled gradient.
+        #pragma omp simd
         for (std::size_t j = 0; j < num_classes; ++j) {
-            probs[offset + j] /= exp_sum;
-            grad[offset + j] = probs[offset + j];
+            const float probability = p[j] * inv_sum;
+
+            p[j] = probability;
+            g[j] = probability * scale;
         }
 
         total_loss +=
-            std::log(exp_sum) + max_logit - input[offset + target];
+            std::log(exp_sum) + max_logit - in[target];
 
-        grad[offset + target] -= 1.0F;
+        g[target] -= scale;
     }
 
-    // Scale gradients to match the mean batch loss.
-    const float scale = 1.0F / static_cast<float>(batch_size);
+    if (bad_target) {
+        throw std::invalid_argument(
+            "Each target must be a valid integer class index"
+        );
+    }
 
-    for (float& value : grad) {
-        value *= scale;
+    if (bad_logit) {
+        throw std::invalid_argument("Logits must be finite");
     }
 
     return {
-        total_loss / static_cast<float>(batch_size),
+        total_loss * scale,
         std::move(gradient),
         std::move(probabilities)
     };

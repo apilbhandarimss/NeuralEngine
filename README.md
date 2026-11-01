@@ -13,26 +13,86 @@ The project focuses on understanding how neural networks work internally, from t
 - **Activation functions:** ReLU for hidden layers.
 - **Loss function:** Numerically stable softmax cross-entropy.
 - **Backpropagation:** Analytical gradients calculated directly using the chain rule.
-- **Mini-batch training:** Processes multiple training examples together.
-- **Batch normalisation:** Normalises activations using batch statistics and learnable scale and shift parameters.
-- **Optimisation:** SGD, MomentumSGD, RMSprop, and Adam, with persistent per-layer optimiser state where required.
+- **Optimisers:** SGD, MomentumSGD, RMSprop, and Adam.
+- **Mini-batch training:** Batched forward propagation and backpropagation.
+- **Batch normalisation:** Learnable scale and shift parameters with batch-statistics-based normalisation.
+- **CPU parallelisation:** OpenMP parallelisation for computationally intensive operations.
+- **SIMD vectorisation:** Compiler-assisted vectorisation of arithmetic and tensor operations.
+- **Tiled computation:** Tiled input-gradient computation to distribute work across CPU threads.
+- **Adaptive parallelisation:** Workload thresholds to avoid parallelisation overhead on smaller operations.
 - **MNIST support:** Dataset loading, training, and test evaluation.
 - **Gradient verification:** Tests comparing analytical gradients with numerical approximations.
 - **NeuralEngine Studio:** A graphical interface for experimenting with the engine when built with the required Raylib dependency.
+
+## CPU Optimisation
+
+NeuralEngine uses CPU-level optimisations to improve training and
+inference performance without depending on external numerical
+computing libraries.
+
+### OpenMP Parallelisation
+
+OpenMP is used to parallelise computationally intensive operations.
+Independent output elements and gradient calculations are distributed
+across multiple CPU threads.
+
+Static scheduling is used for workloads with relatively uniform
+iteration costs. Parallel execution is conditional on workload size,
+avoiding unnecessary threading overhead for smaller operations.
+
+### SIMD Vectorisation
+
+Arithmetic-heavy loops are structured to allow compiler-assisted
+SIMD vectorisation. This is particularly useful for tensor operations,
+matrix calculations, forward propagation, and gradient computation.
+
+### Tiled Gradient Computation
+
+Input-gradient computation is divided into smaller tiles. Each
+parallel worker operates on a disjoint region of the gradient tensor,
+reducing write conflicts and improving work distribution.
+
+### Performance Considerations
+
+Parallel execution does not guarantee better performance for every
+workload. Thread count, memory access patterns, workload size, and
+threading overhead all influence performance.
 
 ## MNIST Results
 
 NeuralEngine was trained on the MNIST handwritten-digit dataset using a fully connected neural network.
 
-| Metric | Result |
+### Training Configuration
+
+| Metric | Value |
 |---|---:|
 | Training dataset | 60,000 images |
 | Test dataset | 10,000 images |
-| Network architecture | 784 → 512 → 256 → 128 → 64 → 10 |
-| Optimiser | Stochastic Gradient Descent |
-| Learning rate | 0.01 |
-| Epochs | 5 |
-| Test accuracy | **97.81%** |
+| Architecture | 784 → 512 → 256 → 128 → 64 → 10 |
+| Batch size | 32 |
+| Epochs | 1 |
+| Mean training loss | 0.404321 |
+| Training time | 7.80 seconds |
+| Testing time | 0.35 seconds |
+| Total time | 8.16 seconds |
+| Test accuracy | **95.49%** |
+| Correct predictions | 9,549 / 10,000 |
+
+### Performance Comparison
+
+An earlier measured run took 69.30 seconds, while the batch-size-32
+run completed in 8.16 seconds.
+
+| Metric | Earlier Run | Batch Size 32 |
+|---|---:|---:|
+| Total time | 69.30 s | 8.16 s |
+| Test accuracy | 94.34% | 95.49% |
+
+The newer run completed approximately 8.5 times faster.
+
+These runs used different configurations, so this comparison
+represents observed performance rather than an isolated measurement
+of OpenMP's speedup.
 
 These results are from a reported training run. Results may vary with changes to initialisation, data ordering, hyperparameters, and implementation details.
 
@@ -253,6 +313,32 @@ When $B=1$, the batch variance is zero. The normalised activation becomes zero u
 
 This is one reason BatchNorm is generally used with batches containing multiple examples.
 
+### BatchNorm Behaviour with Small Mini-Batches
+
+BatchNorm estimates the mean and variance of each feature using the
+current mini-batch. With very small batches, these estimates can
+become noisy and poorly represent the underlying activation
+distribution.
+
+During experiments with NeuralEngine, small-batch training worked
+without BatchNorm but failed to learn effectively when BatchNorm
+was enabled under the tested configuration.
+
+This observation is consistent with research identifying unreliable
+batch-statistics estimates as a limitation of BatchNorm with small
+mini-batches.
+
+Relevant research:
+
+- Wu and He, *Group Normalization*, ECCV 2018.
+- Yong et al., *Momentum Batch Normalization for Deep Learning
+  with Small Batch Size*, ECCV 2020.
+- Yao et al., *Cross-Iteration Batch Normalization*, CVPR 2021.
+
+This does not mean BatchNorm always fails with small batches.
+Its behaviour depends on the architecture, batch size, and
+training configuration.
+
 ### 6. Optimisation Algorithms and Learning Rates
 
 An optimiser updates trainable parameters using gradients produced by backpropagation. NeuralEngine includes four optimisers: plain stochastic gradient descent (SGD), MomentumSGD, RMSprop, and Adam. They all use the same basic objective (move parameters in a direction that reduces the loss) but differ in how they use the current gradient and information retained from previous updates.
@@ -409,6 +495,7 @@ The graph provides a visual comparison of how each optimiser minimises the loss 
 Comparing these curves helps illustrate differences in convergence speed, training stability, and final loss.
 
 All optimisers were evaluated using the same network architecture and dataset to make the comparison meaningful.
+
 ## Experimental Results
 
 The optimiser, architecture, learning-rate and batch-size experiments were analysed with the interactive dashboard in `neuralengine-lab/`. All results use MNIST (30,000 training and 5,000 validation samples), up to 10 epochs per run, and a full grid of:
@@ -468,8 +555,6 @@ Median over all batch sizes and architectures.
 - **RMSprop:** only lr 0.001 learns well (about 80 %). lr 0.01 reaches about 35 %, and lr 0.1 stays at chance (about 10 %).
 - **Adam:** lr 0.001 and 0.01 both reach about 82–83 %, with 0.01 faster early on. lr 0.1 plateaus at about 30 %.
 - The best learning rate sits at the edge of the tested range for several optimisers (0.1 for SGD and MomentumSGD, 0.001 for RMSprop), so the true optimum may lie outside the grid.
-
-### Batch Size
 
 ### Batch Size
 
@@ -680,7 +765,7 @@ int main() {
         neural::softmax_cross_entropy(logits, target);
 
     const neural::Tensor hidden_gradient =
-        fc2.backward(result.gradient);
+        fc2.backward(result.logits_gradient);
 
     const neural::Tensor input_gradient =
         fc1.backward(relu.backward(hidden_gradient));
@@ -707,16 +792,13 @@ NeuralEngine is intended to make the internal mechanics of neural networks expli
 
 ## Future Work
 
-Potential directions for development include:
-
-- [ ] Additional optimisation algorithms and hyperparameter experiments.
-- [ ] Additional activation functions and loss functions.
-- [ ] More extensive batch-training experiments.
-- [ ] Convolutional layers and other neural-network architectures.
-- [ ] Improved tensor operations and performance profiling.
-- [ ] More extensive gradient checks and automated tests.
-- [ ] Expanded visualisation and experimentation tools in NeuralEngine Studio.
-- [ ] Further validation of model checkpoint saving and restoration.
+- [ ] CUDA acceleration and GPU-based tensor operations.
+- [ ] Convolutional layers.
+- [ ] Additional activation and loss functions.
+- [ ] Layer Normalisation and Group Normalisation.
+- [ ] More extensive performance profiling and benchmarking.
+- [ ] Improved model checkpointing and restoration.
+- [ ] Expanded NeuralEngine Studio functionality.
 
 ## Acknowledgements
 

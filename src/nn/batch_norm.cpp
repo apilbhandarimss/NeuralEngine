@@ -1,4 +1,4 @@
-
+// compile with: -O3 -march=native -fopenmp -fno-math-errno
 #include "neural/nn/batch_norm.hpp"
 #include "neural/tensor/tensor.hpp"
 
@@ -9,6 +9,14 @@
 #include <vector>
 
 namespace neural {
+
+namespace {
+
+constexpr int kThreads = 14;
+// Below this many elements, thread startup costs more than it saves.
+constexpr std::size_t kParallelMin = 16384;
+
+} // namespace
 
 BatchNorm::BatchNorm(
     std::size_t features,
@@ -68,62 +76,100 @@ Tensor BatchNorm::forward(const Tensor& input, bool training)
 
     Tensor output(input_shape, 0.0F);
 
+    const std::size_t F = features_;
+    const std::size_t B = batch_size;
+    const bool par = B * F > kParallelMin;
+
+    const float* x = input.data().data();
+    float* y = output.data().data();
+    const float* gamma = gamma_.data();
+    const float* beta = beta_.data();
+
     if (training) {
-        batch_mean_.assign(features_, 0.0F);
-        std::vector<float> variance(features_, 0.0F);
+        batch_mean_.assign(F, 0.0F);
+        std::vector<float> variance(F, 0.0F);
+
+        float* mean = batch_mean_.data();
+        float* var = variance.data();
 
         // Calculate the mean for each feature.
-        for (std::size_t i = 0; i < batch_size; ++i) {
-            for (std::size_t j = 0; j < features_; ++j) {
-                batch_mean_[j] += input.at({i, j});
+        // Each thread sums its own rows into a private copy of mean[]
+        // (OpenMP array reduction), so there are no races.
+        #pragma omp parallel for schedule(static) num_threads(kThreads) \
+            if (par) reduction(+ : mean[0 : F])
+        for (std::size_t i = 0; i < B; ++i) {
+            const float* xr = x + i * F;
+
+            #pragma omp simd
+            for (std::size_t j = 0; j < F; ++j) {
+                mean[j] += xr[j];
             }
         }
 
-        for (std::size_t j = 0; j < features_; ++j) {
-            batch_mean_[j] /= static_cast<float>(batch_size);
+        const float inv_b = 1.0F / static_cast<float>(B);
+
+        #pragma omp simd
+        for (std::size_t j = 0; j < F; ++j) {
+            mean[j] *= inv_b;
         }
 
         // Calculate population variance for each feature.
-        for (std::size_t i = 0; i < batch_size; ++i) {
-            for (std::size_t j = 0; j < features_; ++j) {
-                const float difference =
-                    input.at({i, j}) - batch_mean_[j];
+        #pragma omp parallel for schedule(static) num_threads(kThreads) \
+            if (par) reduction(+ : var[0 : F])
+        for (std::size_t i = 0; i < B; ++i) {
+            const float* xr = x + i * F;
 
-                variance[j] += difference * difference;
+            #pragma omp simd
+            for (std::size_t j = 0; j < F; ++j) {
+                const float difference = xr[j] - mean[j];
+                var[j] += difference * difference;
             }
         }
 
         // Calculate inverse standard deviation and update running statistics.
-        inverse_std_.resize(features_);
+        inverse_std_.resize(F);
 
-        for (std::size_t j = 0; j < features_; ++j) {
-            variance[j] /= static_cast<float>(batch_size);
+        float* inv_std = inverse_std_.data();
+        float* run_mean = running_mean_.data();
+        float* run_var = running_variance_.data();
 
-            inverse_std_[j] =
-                1.0F / std::sqrt(variance[j] + epsilon_);
+        const float momentum = momentum_;
+        const float one_minus_momentum = 1.0F - momentum_;
+        const float epsilon = epsilon_;
 
-            running_mean_[j] =
-                (1.0F - momentum_) * running_mean_[j]
-                + momentum_ * batch_mean_[j];
+        #pragma omp simd
+        for (std::size_t j = 0; j < F; ++j) {
+            var[j] *= inv_b;
 
-            running_variance_[j] =
-                (1.0F - momentum_) * running_variance_[j]
-                + momentum_ * variance[j];
+            inv_std[j] = 1.0F / std::sqrt(var[j] + epsilon);
+
+            run_mean[j] =
+                one_minus_momentum * run_mean[j]
+                + momentum * mean[j];
+
+            run_var[j] =
+                one_minus_momentum * run_var[j]
+                + momentum * var[j];
         }
 
         // Cache normalised input for backward propagation.
         normalized_.emplace(input_shape, 0.0F);
+        float* xh = normalized_->data().data();
 
-        for (std::size_t i = 0; i < batch_size; ++i) {
-            for (std::size_t j = 0; j < features_; ++j) {
+        // Rows are independent: each thread owns whole rows of xh and y.
+        #pragma omp parallel for schedule(static) num_threads(kThreads) if (par)
+        for (std::size_t i = 0; i < B; ++i) {
+            const float* xr = x + i * F;
+            float* xhr = xh + i * F;
+            float* yr = y + i * F;
+
+            #pragma omp simd
+            for (std::size_t j = 0; j < F; ++j) {
                 const float normalized_value =
-                    (input.at({i, j}) - batch_mean_[j])
-                    * inverse_std_[j];
+                    (xr[j] - mean[j]) * inv_std[j];
 
-                normalized_->at({i, j}) = normalized_value;
-
-                output.at({i, j}) =
-                    gamma_[j] * normalized_value + beta_[j];
+                xhr[j] = normalized_value;
+                yr[j] = gamma[j] * normalized_value + beta[j];
             }
         }
 
@@ -132,19 +178,35 @@ Tensor BatchNorm::forward(const Tensor& input, bool training)
         training_cache_valid_ = true;
     } else {
         // Inference uses running statistics, not current batch statistics.
-        for (std::size_t i = 0; i < batch_size; ++i) {
-            for (std::size_t j = 0; j < features_; ++j) {
-                const float inverse_std =
-                    1.0F / std::sqrt(
-                        running_variance_[j] + epsilon_
-                    );
+        // The original recomputed sqrt for every element; per-feature scale
+        // and shift are computed once instead:
+        //   y = gamma * (x - mean) * inv_std + beta = x * scale + shift
+        std::vector<float> scale_v(F);
+        std::vector<float> shift_v(F);
 
-                const float normalized_value =
-                    (input.at({i, j}) - running_mean_[j])
-                    * inverse_std;
+        float* scale = scale_v.data();
+        float* shift = shift_v.data();
+        const float* run_mean = running_mean_.data();
+        const float* run_var = running_variance_.data();
+        const float epsilon = epsilon_;
 
-                output.at({i, j}) =
-                    gamma_[j] * normalized_value + beta_[j];
+        #pragma omp simd
+        for (std::size_t j = 0; j < F; ++j) {
+            const float inverse_std =
+                1.0F / std::sqrt(run_var[j] + epsilon);
+
+            scale[j] = gamma[j] * inverse_std;
+            shift[j] = beta[j] - run_mean[j] * scale[j];
+        }
+
+        #pragma omp parallel for schedule(static) num_threads(kThreads) if (par)
+        for (std::size_t i = 0; i < B; ++i) {
+            const float* xr = x + i * F;
+            float* yr = y + i * F;
+
+            #pragma omp simd
+            for (std::size_t j = 0; j < F; ++j) {
+                yr[j] = xr[j] * scale[j] + shift[j];
             }
         }
 
@@ -170,55 +232,70 @@ Tensor BatchNorm::backward(const Tensor& output_gradient)
         );
     }
 
-    gamma_grad_.assign(features_, 0.0F);
-    beta_grad_.assign(features_, 0.0F);
+    const std::size_t F = features_;
+    const std::size_t B = batch_size_;
+    const bool par = B * F > kParallelMin;
+
+    gamma_grad_.assign(F, 0.0F);
+    beta_grad_.assign(F, 0.0F);
+
+    const float* dy = output_gradient.data().data();
+    const float* xh = normalized_->data().data();
+
+    float* gg = gamma_grad_.data();
+    float* bg = beta_grad_.data();
 
     // Calculate parameter gradients across the batch.
-    for (std::size_t i = 0; i < batch_size_; ++i) {
-        for (std::size_t j = 0; j < features_; ++j) {
-            const float grad = output_gradient.at({i, j});
-            const float x_hat = normalized_->at({i, j});
+    // Array reduction: each thread accumulates into private copies, then
+    // they are combined, so there are no races.
+    #pragma omp parallel for schedule(static) num_threads(kThreads) \
+        if (par) reduction(+ : gg[0 : F], bg[0 : F])
+    for (std::size_t i = 0; i < B; ++i) {
+        const float* dyr = dy + i * F;
+        const float* xhr = xh + i * F;
 
-            beta_grad_[j] += grad;
-            gamma_grad_[j] += grad * x_hat;
+        #pragma omp simd
+        for (std::size_t j = 0; j < F; ++j) {
+            const float grad = dyr[j];
+
+            bg[j] += grad;
+            gg[j] += grad * xhr[j];
         }
     }
 
-    // Average gamma and beta gradients over the batch.
-    // const float scale =
-    //     1.0F / static_cast<float>(batch_size_);
-
-    // for (std::size_t j = 0; j < features_; ++j) {
-    //     gamma_grad_[j] *= scale;
-    //     beta_grad_[j] *= scale;
-    // } this is not need as i have ammended loss function 
+    // Gamma and beta gradients are not averaged here because the loss
+    // function already averages over the batch.
 
     // Calculate input gradients. Do not average these separately.
+    // sum_gradient == beta_grad_ and sum_gradient_normalized == gamma_grad_,
+    // so the second full pass over the batch the original did is not needed.
     Tensor input_gradient(input_->shape(), 0.0F);
+    float* dx = input_gradient.data().data();
 
-    const float n = static_cast<float>(batch_size_);
+    const float n = static_cast<float>(B);
+    const float inv_n = 1.0F / n;
 
-    for (std::size_t j = 0; j < features_; ++j) {
-        float sum_gradient = 0.0F;
-        float sum_gradient_normalized = 0.0F;
+    std::vector<float> coef_v(F);
+    float* coef = coef_v.data();
+    const float* gamma = gamma_.data();
+    const float* inv_std = inverse_std_.data();
 
-        for (std::size_t i = 0; i < batch_size_; ++i) {
-            const float grad = output_gradient.at({i, j});
-            const float x_hat = normalized_->at({i, j});
+    #pragma omp simd
+    for (std::size_t j = 0; j < F; ++j) {
+        coef[j] = gamma[j] * inv_std[j] * inv_n;
+    }
 
-            sum_gradient += grad;
-            sum_gradient_normalized += grad * x_hat;
-        }
+    // Rows are independent: each thread owns whole rows of dx.
+    #pragma omp parallel for schedule(static) num_threads(kThreads) if (par)
+    for (std::size_t i = 0; i < B; ++i) {
+        const float* dyr = dy + i * F;
+        const float* xhr = xh + i * F;
+        float* dxr = dx + i * F;
 
-        for (std::size_t i = 0; i < batch_size_; ++i) {
-            const float grad = output_gradient.at({i, j});
-            const float x_hat = normalized_->at({i, j});
-
-            input_gradient.at({i, j}) =
-                (gamma_[j] * inverse_std_[j] / n)
-                * (n * grad
-                   - sum_gradient
-                   - x_hat * sum_gradient_normalized);
+        #pragma omp simd
+        for (std::size_t j = 0; j < F; ++j) {
+            dxr[j] = coef[j]
+                * (n * dyr[j] - bg[j] - xhr[j] * gg[j]);
         }
     }
 
@@ -238,6 +315,7 @@ std::vector<float>& BatchNorm::beta() noexcept
 {
     return beta_;
 }
+
 const std::vector<float>& BatchNorm::gamma_grad() const noexcept
 {
     return gamma_grad_;

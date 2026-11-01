@@ -83,6 +83,8 @@ constexpr std::size_t kMaxMisses = 20000;
 constexpr std::size_t kGridCols = 8;
 constexpr std::size_t kOptimiserCount = 4;
 constexpr std::size_t kMaxBatchSize = 4096;
+constexpr int kThreads = 14;
+constexpr std::size_t kParallelMin = 16384;  // below this, threads cost more than they save
 
 constexpr int kCanvas = 280;
 constexpr float kBrushRadius = 11.0F;
@@ -474,27 +476,49 @@ public:
     // Mini-batch support: call accumulate() once per sample of the batch (forward + backward, the
     // per-sample gradients are summed), then apply_accumulated() once with the batch size. The
     // optimiser receives the AVERAGED gradient and performs a single update.
+    // Per-sample gradient accumulation: independent per index -> race-free.
     float accumulate(const neural::Tensor& input, std::size_t target, bool* correct = nullptr) {
         const float loss = forward_backward(input, target, correct);
         ensure_accumulators();
         for (std::size_t i = 0; i < layers_.size(); ++i) {
-            const auto gw = layers_[i]->weight_gradients().data();
-            const auto gb = layers_[i]->bias_gradients().data();
-            for (std::size_t j = 0; j < gw.size(); ++j) acc_w_[i][j] += gw[j];
-            for (std::size_t j = 0; j < gb.size(); ++j) acc_b_[i][j] += gb[j];
+            const auto gw_span = layers_[i]->weight_gradients().data();
+            const auto gb_span = layers_[i]->bias_gradients().data();
+            const float* __restrict gw = gw_span.data();
+            const float* __restrict gb = gb_span.data();
+            float* __restrict aw = acc_w_[i].data();
+            float* __restrict ab = acc_b_[i].data();
+            const std::size_t wn = gw_span.size();
+            const std::size_t bn = gb_span.size();
+
+            #pragma omp parallel for simd num_threads(kThreads) schedule(static) if (wn > kParallelMin)
+            for (std::size_t j = 0; j < wn; ++j) aw[j] += gw[j];
+
+            #pragma omp simd
+            for (std::size_t j = 0; j < bn; ++j) ab[j] += gb[j];
         }
         return loss;
     }
 
+    // Scale + update + zero fused per layer.
     template <typename Opt>
     void apply_accumulated(Opt& optimizer, std::size_t count) {
         if (count == 0) return;
         ensure_accumulators();
         const float inv = 1.0F / static_cast<float>(count);
         for (std::size_t i = 0; i < layers_.size(); ++i) {
-            for (float& v : acc_w_[i]) v *= inv;
-            for (float& v : acc_b_[i]) v *= inv;
+            float* __restrict aw = acc_w_[i].data();
+            float* __restrict ab = acc_b_[i].data();
+            const std::size_t wn = acc_w_[i].size();
+            const std::size_t bn = acc_b_[i].size();
+
+            #pragma omp parallel for simd num_threads(kThreads) schedule(static) if (wn > kParallelMin)
+            for (std::size_t j = 0; j < wn; ++j) aw[j] *= inv;
+
+            #pragma omp simd
+            for (std::size_t j = 0; j < bn; ++j) ab[j] *= inv;
+
             optimizer.apply(*layers_[i], acc_w_[i], acc_b_[i]);
+
             std::fill(acc_w_[i].begin(), acc_w_[i].end(), 0.0F);
             std::fill(acc_b_[i].begin(), acc_b_[i].end(), 0.0F);
         }
@@ -665,11 +689,20 @@ public:
         apply(layer, layer.weight_gradients().data(), layer.bias_gradients().data());
     }
     template <typename GW, typename GB>
-    void apply(neural::Dense& layer, const GW& gw, const GB& gb) const {
-        auto w = layer.weights().data();
-        auto b = layer.bias().data();
-        for (std::size_t i = 0; i < w.size(); ++i) w[i] -= lr_ * gw[i];
-        for (std::size_t i = 0; i < b.size(); ++i) b[i] -= lr_ * gb[i];
+    void apply(neural::Dense& layer, const GW& gw_in, const GB& gb_in) const {
+        float* __restrict w = layer.weights().data().data();
+        float* __restrict b = layer.bias().data().data();
+        const float* __restrict gw = gw_in.data();
+        const float* __restrict gb = gb_in.data();
+        const std::size_t wn = layer.weights().data().size();
+        const std::size_t bn = layer.bias().data().size();
+        const float lr = lr_;
+
+        #pragma omp parallel for simd num_threads(kThreads) schedule(static) if (wn > kParallelMin)
+        for (std::size_t i = 0; i < wn; ++i) w[i] -= lr * gw[i];
+
+        #pragma omp simd
+        for (std::size_t i = 0; i < bn; ++i) b[i] -= lr * gb[i];
     }
 private:
     float lr_;
@@ -683,22 +716,35 @@ public:
     void step(neural::Dense& layer) {
         apply(layer, layer.weight_gradients().data(), layer.bias_gradients().data());
     }
+    // velocity + weight update fused
     template <typename GW, typename GB>
-    void apply(neural::Dense& layer, const GW& gw, const GB& gb) {
-        auto w = layer.weights().data();
-        auto b = layer.bias().data();
+    void apply(neural::Dense& layer, const GW& gw_in, const GB& gb_in) {
         auto& s = states_[&layer];
-        if (s.vw.size() != gw.size()) {
-            s.vw.assign(gw.size(), 0.0F);
-            s.vb.assign(gb.size(), 0.0F);
+        const std::size_t wn = gw_in.size();
+        const std::size_t bn = gb_in.size();
+        if (s.vw.size() != wn) {
+            s.vw.assign(wn, 0.0F);
+            s.vb.assign(bn, 0.0F);
         }
-        for (std::size_t i = 0; i < gw.size(); ++i) {
-            s.vw[i] = momentum_ * s.vw[i] + gw[i];
-            w[i] -= lr_ * s.vw[i];
+        float* __restrict w = layer.weights().data().data();
+        float* __restrict b = layer.bias().data().data();
+        const float* __restrict gw = gw_in.data();
+        const float* __restrict gb = gb_in.data();
+        float* __restrict vw = s.vw.data();
+        float* __restrict vb = s.vb.data();
+        const float lr = lr_;
+        const float mom = momentum_;
+
+        #pragma omp parallel for simd num_threads(kThreads) schedule(static) if (wn > kParallelMin)
+        for (std::size_t i = 0; i < wn; ++i) {
+            vw[i] = mom * vw[i] + gw[i];
+            w[i] -= lr * vw[i];
         }
-        for (std::size_t i = 0; i < gb.size(); ++i) {
-            s.vb[i] = momentum_ * s.vb[i] + gb[i];
-            b[i] -= lr_ * s.vb[i];
+
+        #pragma omp simd
+        for (std::size_t i = 0; i < bn; ++i) {
+            vb[i] = mom * vb[i] + gb[i];
+            b[i] -= lr * vb[i];
         }
     }
 private:
@@ -718,21 +764,37 @@ public:
         apply(layer, layer.weight_gradients().data(), layer.bias_gradients().data());
     }
     template <typename GW, typename GB>
-    void apply(neural::Dense& layer, const GW& gw, const GB& gb) {
-        auto w = layer.weights().data();
-        auto b = layer.bias().data();
+    void apply(neural::Dense& layer, const GW& gw_in, const GB& gb_in) {
         auto& s = states_[&layer];
-        if (s.vw.size() != gw.size()) {
-            s.vw.assign(gw.size(), 0.0F);
-            s.vb.assign(gb.size(), 0.0F);
+        const std::size_t wn = gw_in.size();
+        const std::size_t bn = gb_in.size();
+        if (s.vw.size() != wn) {
+            s.vw.assign(wn, 0.0F);
+            s.vb.assign(bn, 0.0F);
         }
-        for (std::size_t i = 0; i < gw.size(); ++i) {
-            s.vw[i] = decay_ * s.vw[i] + (1.0F - decay_) * gw[i] * gw[i];
-            w[i] -= lr_ * gw[i] / (std::sqrt(s.vw[i]) + eps_);
+        float* __restrict w = layer.weights().data().data();
+        float* __restrict b = layer.bias().data().data();
+        const float* __restrict gw = gw_in.data();
+        const float* __restrict gb = gb_in.data();
+        float* __restrict vw = s.vw.data();
+        float* __restrict vb = s.vb.data();
+        const float lr = lr_;
+        const float decay = decay_;
+        const float omd = 1.0F - decay_;
+        const float eps = eps_;
+
+        #pragma omp parallel for simd num_threads(kThreads) schedule(static) if (wn > kParallelMin)
+        for (std::size_t i = 0; i < wn; ++i) {
+            const float g = gw[i];
+            vw[i] = decay * vw[i] + omd * g * g;
+            w[i] -= lr * g / (std::sqrt(vw[i]) + eps);
         }
-        for (std::size_t i = 0; i < gb.size(); ++i) {
-            s.vb[i] = decay_ * s.vb[i] + (1.0F - decay_) * gb[i] * gb[i];
-            b[i] -= lr_ * gb[i] / (std::sqrt(s.vb[i]) + eps_);  // bias uses its OWN accumulator
+
+        #pragma omp simd
+        for (std::size_t i = 0; i < bn; ++i) {
+            const float g = gb[i];
+            vb[i] = decay * vb[i] + omd * g * g;  // bias uses its OWN accumulator
+            b[i] -= lr * g / (std::sqrt(vb[i]) + eps);
         }
     }
 private:
@@ -753,34 +815,53 @@ public:
         apply(layer, layer.weight_gradients().data(), layer.bias_gradients().data());
     }
     template <typename GW, typename GB>
-    void apply(neural::Dense& layer, const GW& gw, const GB& gb) {
-        auto w = layer.weights().data();
-        auto b = layer.bias().data();
+    void apply(neural::Dense& layer, const GW& gw_in, const GB& gb_in) {
         auto& s = states_[&layer];
-        if (s.mw.size() != gw.size()) {
-            s.mw.assign(gw.size(), 0.0F);
-            s.vw.assign(gw.size(), 0.0F);
-            s.mb.assign(gb.size(), 0.0F);
-            s.vb.assign(gb.size(), 0.0F);
+        const std::size_t wn = gw_in.size();
+        const std::size_t bn = gb_in.size();
+        if (s.mw.size() != wn) {
+            s.mw.assign(wn, 0.0F);
+            s.vw.assign(wn, 0.0F);
+            s.mb.assign(bn, 0.0F);
+            s.vb.assign(bn, 0.0F);
             s.step_count = 0;
         }
         ++s.step_count;
         const float c1 = 1.0F - std::pow(b1_, static_cast<float>(s.step_count));
         const float c2 = 1.0F - std::pow(b2_, static_cast<float>(s.step_count));
 
-        for (std::size_t i = 0; i < gw.size(); ++i) {
-            s.mw[i] = b1_ * s.mw[i] + (1.0F - b1_) * gw[i];
-            s.vw[i] = b2_ * s.vw[i] + (1.0F - b2_) * gw[i] * gw[i];
-            const float m_hat = s.mw[i] / c1;
-            const float v_hat = s.vw[i] / c2;
-            w[i] -= lr_ * m_hat / (std::sqrt(v_hat) + eps_);
+        float* __restrict w = layer.weights().data().data();
+        float* __restrict b = layer.bias().data().data();
+        const float* __restrict gw = gw_in.data();
+        const float* __restrict gb = gb_in.data();
+        float* __restrict mw = s.mw.data();
+        float* __restrict vw = s.vw.data();
+        float* __restrict mb = s.mb.data();
+        float* __restrict vb = s.vb.data();
+
+        const float lr = lr_;
+        const float b1 = b1_;
+        const float b2 = b2_;
+        const float omb1 = 1.0F - b1_;
+        const float omb2 = 1.0F - b2_;
+        const float inv1 = 1.0F / c1;
+        const float inv2 = 1.0F / c2;
+        const float eps = eps_;
+
+        #pragma omp parallel for simd num_threads(kThreads) schedule(static) if (wn > kParallelMin)
+        for (std::size_t i = 0; i < wn; ++i) {
+            const float g = gw[i];
+            mw[i] = b1 * mw[i] + omb1 * g;
+            vw[i] = b2 * vw[i] + omb2 * g * g;
+            w[i] -= lr * (mw[i] * inv1) / (std::sqrt(vw[i] * inv2) + eps);
         }
-        for (std::size_t i = 0; i < gb.size(); ++i) {
-            s.mb[i] = b1_ * s.mb[i] + (1.0F - b1_) * gb[i];
-            s.vb[i] = b2_ * s.vb[i] + (1.0F - b2_) * gb[i] * gb[i];
-            const float m_hat = s.mb[i] / c1;
-            const float v_hat = s.vb[i] / c2;
-            b[i] -= lr_ * m_hat / (std::sqrt(v_hat) + eps_);
+
+        #pragma omp simd
+        for (std::size_t i = 0; i < bn; ++i) {
+            const float g = gb[i];
+            mb[i] = b1 * mb[i] + omb1 * g;
+            vb[i] = b2 * vb[i] + omb2 * g * g;
+            b[i] -= lr * (mb[i] * inv1) / (std::sqrt(vb[i] * inv2) + eps);
         }
     }
 private:

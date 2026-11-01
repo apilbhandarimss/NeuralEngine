@@ -8,7 +8,9 @@
 #include "neural/tensor/tensor.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <cstddef>
+#include <iomanip>
 #include <iostream>
 #include <numeric>
 #include <random>
@@ -19,6 +21,11 @@ int main() {
     constexpr std::size_t output_features = 10;
     constexpr std::size_t batch_size = 32;
     constexpr std::size_t epochs = 1;
+
+    // QUICK TEST: train on 30k images and evaluate on 5.
+    // For full MNIST, use training.size() and testing.size() below.
+    constexpr std::size_t training_samples = 60000;
+    constexpr std::size_t testing_samples = 10000;
 
     neural::MNISTDataset training(
         "../data/mnist/train-images-idx3-ubyte",
@@ -45,10 +52,16 @@ int main() {
 
     neural::Adam optimizer(0.1F);
 
-    std::vector<std::size_t> indices(training.size());
+    // Limit the training subset.
+    const std::size_t train_count =
+        std::min(training_samples, training.size());
+
+    std::vector<std::size_t> indices(train_count);
     std::iota(indices.begin(), indices.end(), 0);
 
     std::mt19937 rng(42);
+
+    const auto training_start = std::chrono::steady_clock::now();
 
     for (std::size_t epoch = 0; epoch < epochs; ++epoch) {
         std::shuffle(indices.begin(), indices.end(), rng);
@@ -66,7 +79,6 @@ int main() {
             neural::Tensor inputs({current_batch, input_features});
             neural::Tensor targets({current_batch});
 
-            // Collect examples into one batch.
             for (std::size_t i = 0; i < current_batch; ++i) {
                 const auto image = training.image(indices[start + i]);
 
@@ -78,7 +90,7 @@ int main() {
                     static_cast<float>(training.label(indices[start + i]));
             }
 
-            // Forward pass: Dense -> BatchNorm -> activation.
+            // Forward pass.
             const auto z1 = fc1.forward(inputs, true);
             const auto n1 = bn1.forward(z1, true);
             const auto a1 = relu1.forward(n1);
@@ -104,7 +116,7 @@ int main() {
                 static_cast<double>(result.loss) *
                 static_cast<double>(current_batch);
 
-            // Backward pass in reverse order.
+            // Backward pass.
             auto gradient = fc5.backward(result.logits_gradient);
 
             gradient = relu4.backward(gradient);
@@ -123,7 +135,7 @@ int main() {
             gradient = bn1.backward(gradient);
             gradient = fc1.backward(gradient);
 
-            // One parameter update per batch.
+            // Optimiser updates.
             optimizer.step(fc1);
             optimizer.step(fc2);
             optimizer.step(fc3);
@@ -138,11 +150,11 @@ int main() {
             processed += current_batch;
 
             if (processed % 1000 < current_batch ||
-                processed == training.size()) {
+                processed == train_count) {
                 std::cout
                     << "Epoch " << (epoch + 1)
                     << " | Samples: " << processed
-                    << "/" << training.size()
+                    << "/" << train_count
                     << " | Mean loss: "
                     << total_loss / static_cast<double>(processed)
                     << '\n';
@@ -150,15 +162,27 @@ int main() {
         }
     }
 
-    // Evaluation uses running BatchNorm statistics.
+    const auto training_end = std::chrono::steady_clock::now();
+
+    const double training_seconds =
+        std::chrono::duration<double>(
+            training_end - training_start
+        ).count();
+
+    // Evaluation on a limited test subset.
+    const std::size_t test_count =
+        std::min(testing_samples, testing.size());
+
     std::size_t correct = 0;
 
+    const auto testing_start = std::chrono::steady_clock::now();
+
     for (std::size_t start = 0;
-         start < testing.size();
+         start < test_count;
          start += batch_size) {
 
         const std::size_t current_batch =
-            std::min(batch_size, testing.size() - start);
+            std::min(batch_size, test_count - start);
 
         neural::Tensor inputs({current_batch, input_features});
 
@@ -208,17 +232,34 @@ int main() {
 
         std::cout << "\rEvaluated "
                   << (start + current_batch)
-                  << "/" << testing.size()
+                  << "/" << test_count
                   << std::flush;
     }
 
+    const auto testing_end = std::chrono::steady_clock::now();
+
+    const double testing_seconds =
+        std::chrono::duration<double>(
+            testing_end - testing_start
+        ).count();
+
     const double accuracy =
         100.0 * static_cast<double>(correct) /
-        static_cast<double>(testing.size());
+        static_cast<double>(test_count);
 
-    std::cout << "\nTest accuracy: " << accuracy << "%\n";
+    std::cout << std::fixed << std::setprecision(2);
+
+    std::cout << "\n\n========== RESULTS ==========\n";
+    std::cout << "Training samples: " << train_count << '\n';
+    std::cout << "Testing samples:  " << test_count << '\n';
+    std::cout << "Training time: " << training_seconds << " seconds\n";
+    std::cout << "Testing time:  " << testing_seconds << " seconds\n";
+    std::cout << "Total time:    "
+              << training_seconds + testing_seconds << " seconds\n";
+    std::cout << "Accuracy:      " << accuracy << "%\n";
     std::cout << "Correct predictions: "
-              << correct << "/" << testing.size() << '\n';
+              << correct << "/" << test_count << '\n';
+    std::cout << "=============================\n";
 
     return 0;
 }

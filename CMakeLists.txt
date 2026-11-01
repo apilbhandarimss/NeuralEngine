@@ -1,4 +1,3 @@
-
 cmake_minimum_required(VERSION 3.20)
 project(NeuralEngine VERSION 0.1.0 LANGUAGES CXX)
 
@@ -6,6 +5,14 @@ option(NEURAL_BUILD_TESTS "Build the test suite" ON)
 option(NEURAL_BUILD_EXAMPLES "Build examples" ON)
 option(NEURAL_BUILD_EXPERIMENTS "Build experiments" ON)
 option(NEURAL_BUILD_STUDIO "Build the Raylib Studio GUI" ON)
+option(NEURAL_NATIVE_ARCH "Tune for this CPU (-march=native)" ON)
+
+# Default to Release so -O3 is actually used.
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
+endif()
+
+find_package(OpenMP REQUIRED)
 
 add_library(neural_engine
     src/core/device.cpp
@@ -24,6 +31,9 @@ add_library(neural_engine
     include/neural/nn/batch_norm.hpp
 )
 
+# OpenMP::OpenMP_CXX adds -fopenmp at compile and link time.
+target_link_libraries(neural_engine PUBLIC OpenMP::OpenMP_CXX)
+
 target_compile_features(neural_engine PUBLIC cxx_std_20)
 
 target_include_directories(neural_engine
@@ -39,11 +49,18 @@ set_target_properties(neural_engine PROPERTIES
 )
 
 if(MSVC)
-    target_compile_options(neural_engine PRIVATE /W4 /permissive-)
+    target_compile_options(neural_engine PRIVATE
+        /W4 /permissive- /O2 /arch:AVX2
+    )
 else()
     target_compile_options(neural_engine PRIVATE
         -Wall -Wextra -Wpedantic -Wconversion -Wshadow
+        -O3 -fno-math-errno
     )
+
+    if(NEURAL_NATIVE_ARCH)
+        target_compile_options(neural_engine PRIVATE -march=native)
+    endif()
 endif()
 
 # Tests
@@ -60,7 +77,7 @@ if(NEURAL_BUILD_TESTS)
         tests/test_gradients.cpp
     )
     target_link_libraries(neural_gradient_tests PRIVATE neural_engine)
-    add_test(NAME neural_gradient_tests COMMAND neural_engine)
+    add_test(NAME neural_gradient_tests COMMAND neural_gradient_tests)
 endif()
 
 # Examples

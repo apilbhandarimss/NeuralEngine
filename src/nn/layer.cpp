@@ -1,7 +1,9 @@
-
+// compile with: -O3 -march=native -fopenmp
 #include "neural/nn/layer.hpp"
 
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <random>
 #include <stdexcept>
 #include <string>
@@ -10,6 +12,10 @@
 namespace neural {
 
 namespace {
+
+constexpr int kThreads = 14;
+constexpr std::size_t kParallelThreshold = 32768;
+constexpr std::size_t kTile = 256;
 
 std::size_t checked_feature_count(std::size_t count, const char* name) {
     if (count == 0) {
@@ -95,28 +101,23 @@ void Dense::initialise(WeightInit init, std::mt19937& rng) {
 }
 
 Tensor Dense::forward(const Tensor& input, bool /*training*/) {
-    const std::size_t inputs = input_features();
+    const std::size_t inputs  = input_features();
     const std::size_t outputs = output_features();
 
     const bool single = input.rank() == 1;
-    const bool batched = input.rank() == 2;
-
-    if (!single && !batched) {
+    if (!single && input.rank() != 2) {
         throw std::invalid_argument(
             "Dense::forward expects rank-1 or rank-2 input"
         );
     }
-
     if (input.shape().back() != inputs) {
         throw std::invalid_argument(
             "Dense::forward input feature count mismatch"
         );
     }
 
-    const std::size_t batch_size =
-        single ? 1 : input.shape()[0];
-
-    if (batch_size == 0) {
+    const std::size_t batch = single ? 1 : input.shape()[0];
+    if (batch == 0) {
         throw std::invalid_argument(
             "Dense::forward batch size must be greater than zero"
         );
@@ -125,30 +126,30 @@ Tensor Dense::forward(const Tensor& input, bool /*training*/) {
     Tensor output(
         single
             ? std::vector<std::size_t>{outputs}
-            : std::vector<std::size_t>{batch_size, outputs},
+            : std::vector<std::size_t>{batch, outputs},
         0.0F
     );
 
-    const auto x = input.data();
-    const auto w = weights_.data();
-    const auto bias_values = bias_.data();
-    auto y = output.data();
+    const float* __restrict x    = input.data().data();
+    const float* __restrict w    = weights_.data().data();
+    const float* __restrict bias = bias_.data().data();
+    float* __restrict y          = output.data().data();
 
-    for (std::size_t b = 0; b < batch_size; ++b) {
-        for (std::size_t out = 0; out < outputs; ++out) {
-            float sum = bias_values[out];
+    // Each (b, o) cell is written by exactly one thread -> no data races.
+    // A rank-1 input is just batch == 1, so no branching in the hot loop.
+    #pragma omp parallel for collapse(2) schedule(static) num_threads(kThreads) \
+        if (batch * outputs * inputs > kParallelThreshold)
+    for (std::size_t b = 0; b < batch; ++b) {
+        for (std::size_t o = 0; o < outputs; ++o) {
+            const float* __restrict xr = x + b * inputs;
+            const float* __restrict wr = w + o * inputs;
 
-            for (std::size_t in = 0; in < inputs; ++in) {
-                const std::size_t xi =
-                    single ? in : b * inputs + in;
-
-                sum += w[out * inputs + in] * x[xi];
+            float sum = 0.0F;
+            #pragma omp simd reduction(+:sum)
+            for (std::size_t i = 0; i < inputs; ++i) {
+                sum += wr[i] * xr[i];
             }
-
-            const std::size_t yi =
-                single ? out : b * outputs + out;
-
-            y[yi] = sum;
+            y[b * outputs + o] = sum + bias[o];
         }
     }
 
@@ -166,62 +167,81 @@ Tensor Dense::backward(const Tensor& output_gradient) {
     const Tensor& input = *cached_input_;
 
     const bool single = input.rank() == 1;
-    const std::size_t inputs = input_features();
+    const std::size_t inputs  = input_features();
     const std::size_t outputs = output_features();
-
-    const std::size_t batch_size =
-        single ? 1 : input.shape()[0];
+    const std::size_t batch   = single ? 1 : input.shape()[0];
 
     if (output_gradient.rank() != input.rank() ||
         output_gradient.shape().back() != outputs ||
-        (!single &&
-         output_gradient.shape()[0] != batch_size)) {
+        (!single && output_gradient.shape()[0] != batch)) {
         throw std::invalid_argument(
             "Dense::backward output gradient shape mismatch"
         );
     }
 
-    const auto x = input.data();
-    const auto w = weights_.data();
-    const auto dy = output_gradient.data();
-
-    auto dw = weight_gradients_.data();
-    auto db = bias_gradients_.data();
-
-    for (float& value : dw) {
-        value = 0.0F;
-    }
-
-    for (float& value : db) {
-        value = 0.0F;
-    }
-
     Tensor input_gradient(
         single
             ? std::vector<std::size_t>{inputs}
-            : std::vector<std::size_t>{batch_size, inputs},
+            : std::vector<std::size_t>{batch, inputs},
         0.0F
     );
 
-    auto dx = input_gradient.data();
+    const float* __restrict x  = input.data().data();
+    const float* __restrict w  = weights_.data().data();
+    const float* __restrict dy = output_gradient.data().data();
+    float* __restrict dw       = weight_gradients_.data().data();
+    float* __restrict db       = bias_gradients_.data().data();
+    float* __restrict dx       = input_gradient.data().data();
 
-    for (std::size_t b = 0; b < batch_size; ++b) {
-        for (std::size_t out = 0; out < outputs; ++out) {
-            const std::size_t dyi =
-                single ? out : b * outputs + out;
+    const bool par = batch * outputs * inputs > kParallelThreshold;
 
-            const float gradient = dy[dyi];
+    // Pass 1: dW and db.
+    // Parallel over `o`; each thread owns row dw[o, :] and db[o].
+    // Values are assigned (not accumulated across calls), so no separate
+    // zeroing pass is needed.
+    #pragma omp parallel for schedule(static) num_threads(kThreads) if (par)
+    for (std::size_t o = 0; o < outputs; ++o) {
+        float* __restrict dwr = dw + o * inputs;
 
-            db[out] += gradient;
+        #pragma omp simd
+        for (std::size_t i = 0; i < inputs; ++i) {
+            dwr[i] = 0.0F;
+        }
 
-            for (std::size_t in = 0; in < inputs; ++in) {
-                const std::size_t xi =
-                    single ? in : b * inputs + in;
+        float bsum = 0.0F;
+        for (std::size_t b = 0; b < batch; ++b) {
+            const float g = dy[b * outputs + o];
+            const float* __restrict xr = x + b * inputs;
+            bsum += g;
 
-                const std::size_t wi = out * inputs + in;
+            #pragma omp simd
+            for (std::size_t i = 0; i < inputs; ++i) {
+                dwr[i] += g * xr[i];
+            }
+        }
+        db[o] = bsum;
+    }
 
-                dw[wi] += gradient * x[xi];
-                dx[xi] += w[wi] * gradient;
+    // Pass 2: dX.
+    // Parallel over (batch, input tile); each thread owns its dx slice,
+    // so there are no races. dx starts zeroed from the Tensor constructor.
+    const std::size_t tiles = (inputs + kTile - 1) / kTile;
+
+    #pragma omp parallel for collapse(2) schedule(static) num_threads(kThreads) if (par)
+    for (std::size_t b = 0; b < batch; ++b) {
+        for (std::size_t t = 0; t < tiles; ++t) {
+            const std::size_t i0 = t * kTile;
+            const std::size_t i1 = (i0 + kTile < inputs) ? i0 + kTile : inputs;
+            float* __restrict dxr = dx + b * inputs;
+
+            for (std::size_t o = 0; o < outputs; ++o) {
+                const float g = dy[b * outputs + o];
+                const float* __restrict wr = w + o * inputs;
+
+                #pragma omp simd
+                for (std::size_t i = i0; i < i1; ++i) {
+                    dxr[i] += wr[i] * g;
+                }
             }
         }
     }
@@ -229,7 +249,6 @@ Tensor Dense::backward(const Tensor& output_gradient) {
     cached_input_.reset();
     return input_gradient;
 }
-
 
 const Tensor& Dense::weights() const noexcept {
     return weights_;

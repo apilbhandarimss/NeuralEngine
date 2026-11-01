@@ -1,4 +1,4 @@
-
+// compile with: -O3 -march=native -fopenmp -fno-math-errno
 #include "neural/ops/activations.hpp"
 
 #include <cmath>
@@ -7,13 +7,28 @@
 
 namespace neural {
 
+namespace {
+
+constexpr int kThreads = 14;
+// Cheap, memory-bound loops (ReLU, all backward passes).
+constexpr std::size_t kParallelMinCheap = 32768;
+// Loops dominated by exp/tanh are worth threading sooner.
+constexpr std::size_t kParallelMinMath = 4096;
+
+} // namespace
+
+// ---------------------------------------------------------------- ReLU
+
 Tensor ReLU::forward(const Tensor& input) const {
     Tensor result(input.shape(), 0.0F);
 
-    const auto values = input.data();
-    auto output = result.data();
+    const std::size_t n = input.size();
+    const float* __restrict values = input.data().data();
+    float* __restrict output = result.data().data();
 
-    for (std::size_t i = 0; i < input.size(); ++i) {
+    // Each iteration touches only index i -> no races.
+    #pragma omp parallel for simd num_threads(kThreads) schedule(static) if (n > kParallelMinCheap)
+    for (std::size_t i = 0; i < n; ++i) {
         output[i] = values[i] > 0.0F ? values[i] : 0.0F;
     }
 
@@ -34,11 +49,13 @@ Tensor ReLU::backward(const Tensor& output_gradient) {
 
     Tensor input_gradient(output.shape(), 0.0F);
 
-    const auto values = output.data();
-    const auto gradient = output_gradient.data();
-    auto result = input_gradient.data();
+    const std::size_t n = output.size();
+    const float* __restrict values = output.data().data();
+    const float* __restrict gradient = output_gradient.data().data();
+    float* __restrict result = input_gradient.data().data();
 
-    for (std::size_t i = 0; i < output.size(); ++i) {
+    #pragma omp parallel for simd num_threads(kThreads) schedule(static) if (n > kParallelMinCheap)
+    for (std::size_t i = 0; i < n; ++i) {
         result[i] = values[i] > 0.0F ? gradient[i] : 0.0F;
     }
 
@@ -46,23 +63,27 @@ Tensor ReLU::backward(const Tensor& output_gradient) {
     return input_gradient;
 }
 
+// ------------------------------------------------------------- Sigmoid
+
 Tensor Sigmoid::forward(const Tensor& input) const {
     Tensor result(input.shape(), 0.0F);
 
-    const auto values = input.data();
-    auto output = result.data();
+    const std::size_t n = input.size();
+    const float* __restrict values = input.data().data();
+    float* __restrict output = result.data().data();
 
-    for (std::size_t i = 0; i < input.size(); ++i) {
+    // Numerically stable sigmoid, written branch-free so it vectorizes.
+    // With e = exp(-|x|):
+    //   x >= 0 -> 1 / (1 + e)
+    //   x <  0 -> e / (1 + e)
+    // which is exactly the two original branches.
+    #pragma omp parallel for simd num_threads(kThreads) schedule(static) if (n > kParallelMinMath)
+    for (std::size_t i = 0; i < n; ++i) {
         const float x = values[i];
+        const float e = std::exp(-std::fabs(x));
+        const float numerator = x >= 0.0F ? 1.0F : e;
 
-        // Numerically stable sigmoid.
-        if (x >= 0.0F) {
-            const float e = std::exp(-x);
-            output[i] = 1.0F / (1.0F + e);
-        } else {
-            const float e = std::exp(x);
-            output[i] = e / (1.0F + e);
-        }
+        output[i] = numerator / (1.0F + e);
     }
 
     const_cast<Sigmoid*>(this)->cached_output_ = result;
@@ -82,11 +103,13 @@ Tensor Sigmoid::backward(const Tensor& output_gradient) {
 
     Tensor input_gradient(output.shape(), 0.0F);
 
-    const auto values = output.data();
-    const auto gradient = output_gradient.data();
-    auto result = input_gradient.data();
+    const std::size_t n = output.size();
+    const float* __restrict values = output.data().data();
+    const float* __restrict gradient = output_gradient.data().data();
+    float* __restrict result = input_gradient.data().data();
 
-    for (std::size_t i = 0; i < output.size(); ++i) {
+    #pragma omp parallel for simd num_threads(kThreads) schedule(static) if (n > kParallelMinCheap)
+    for (std::size_t i = 0; i < n; ++i) {
         result[i] = gradient[i] * values[i] * (1.0F - values[i]);
     }
 
@@ -94,13 +117,17 @@ Tensor Sigmoid::backward(const Tensor& output_gradient) {
     return input_gradient;
 }
 
+// ---------------------------------------------------------------- Tanh
+
 Tensor Tanh::forward(const Tensor& input) const {
     Tensor result(input.shape(), 0.0F);
 
-    const auto values = input.data();
-    auto output = result.data();
+    const std::size_t n = input.size();
+    const float* __restrict values = input.data().data();
+    float* __restrict output = result.data().data();
 
-    for (std::size_t i = 0; i < input.size(); ++i) {
+    #pragma omp parallel for simd num_threads(kThreads) schedule(static) if (n > kParallelMinMath)
+    for (std::size_t i = 0; i < n; ++i) {
         output[i] = std::tanh(values[i]);
     }
 
@@ -121,11 +148,13 @@ Tensor Tanh::backward(const Tensor& output_gradient) {
 
     Tensor input_gradient(output.shape(), 0.0F);
 
-    const auto values = output.data();
-    const auto gradient = output_gradient.data();
-    auto result = input_gradient.data();
+    const std::size_t n = output.size();
+    const float* __restrict values = output.data().data();
+    const float* __restrict gradient = output_gradient.data().data();
+    float* __restrict result = input_gradient.data().data();
 
-    for (std::size_t i = 0; i < output.size(); ++i) {
+    #pragma omp parallel for simd num_threads(kThreads) schedule(static) if (n > kParallelMinCheap)
+    for (std::size_t i = 0; i < n; ++i) {
         result[i] = gradient[i] * (1.0F - values[i] * values[i]);
     }
 
@@ -133,4 +162,4 @@ Tensor Tanh::backward(const Tensor& output_gradient) {
     return input_gradient;
 }
 
-}
+} // namespace neural
